@@ -173,7 +173,7 @@ describe('CustomFieldsEditor', () => {
   it('hides Credential sign-in methods while keeping them in place', async () => {
     const user = userEvent.setup()
     const signIn: CustomField = { id: 'sign-in', label: 'Sign-in method', type: 'palladin.signin.v1',
-      value: { provider: 'google', account: null } as never }
+      value: { provider: 'google', account: null, entry: null } as never }
     const first: CustomField = { id: 'first', label: 'First', type: 'text', value: 'one' }
     const last: CustomField = { id: 'last', label: 'Last', type: 'text', value: 'two' }
     render(<Harness initial={[first, signIn, last]} hideSignInMethod />)

@@ -1065,7 +1065,9 @@ describe('EntryDetailPage — DetailsTab', () => {
     }
 
     it('shows an existing binding as a dedicated control, not a free-text custom field', async () => {
+      const user = userEvent.setup()
       renderCredential([binding], { [`custom:${SIGN_IN_ID}`]: 'never' })
+      await user.click(await screen.findByRole('button', { name: 'Edit sign-in method' }))
       await waitFor(() => expect(screen.getByLabelText('Provider account')).toHaveValue('alice@example.com'))
       expect(screen.getByLabelText('Provider')).toHaveValue('google')
       expect(screen.queryByText('Unsupported field, kept unchanged')).not.toBeInTheDocument()
@@ -1079,41 +1081,67 @@ describe('EntryDetailPage — DetailsTab', () => {
       await user.click(screen.getByRole('button', { name: 'Add sign-in method' }))
       await user.selectOptions(screen.getByLabelText('Provider'), 'github')
       await user.type(screen.getByLabelText('Provider account'), ' octocat ')
+      await user.click(screen.getByRole('button', { name: 'Save' }))
       await user.click(screen.getByRole('button', { name: /save changes/i }))
 
       await waitFor(() => expect(updateMutateMock).toHaveBeenCalledTimes(1))
       const { draft, secret } = encodedDraft()
       expect(draft.content.fields).toEqual([expect.objectContaining({
-        label: 'Sign-in method', type: 'palladin.signin.v1', value: { provider: 'github', account: 'octocat', entry: null },
+        label: 'Sign-in methods', type: 'palladin.signin.v2', value: { provider: 'github', account: 'octocat', entry: null },
       })])
       const fieldId = `custom:${draft.content.fields[0].id}`
       expect(secret.agentFieldAccess[fieldId]).toBe('discovery')
       expect(listGrantableFields(secret).map(({ id }) => id)).not.toContain(fieldId)
       const discovery = projectAgentDiscovery(secret)
-      expect(discovery?.fields).toContainEqual({ id: 'signIn',
-        value: '{"entry":null,"provider":"github","schema":"palladin.signin.v1"}' })
+      expect(JSON.parse(discovery!.fields.find(({ id }) => id === 'signInMethods')!.value)).toEqual({ schema: 'palladin.signin.v2', methods: [{ id: fieldId, provider: 'github', entry: null }] })
       expect(JSON.stringify(discovery)).not.toContain('octocat')
     })
 
     it('keeps an existing restricted binding hidden until the owner turns Discovery on', async () => {
       const user = userEvent.setup()
       renderCredential([binding], { [`custom:${SIGN_IN_ID}`]: 'never' })
+      await user.click(await screen.findByRole('button', { name: 'Edit sign-in method' }))
       const toggle = await screen.findByRole('switch', { name: 'Visible to agents' })
       expect(toggle).not.toBeChecked()
       await user.selectOptions(screen.getByLabelText('Provider'), 'apple')
+      await user.click(screen.getByRole('button', { name: 'Save' }))
       await user.click(screen.getByRole('button', { name: /save changes/i }))
       await waitFor(() => expect(updateMutateMock).toHaveBeenCalledTimes(1))
       expect(encodedDraft().secret.agentFieldAccess[`custom:${SIGN_IN_ID}`]).toBe('never')
 
-      await user.click(toggle)
+      await user.click(screen.getByRole('button', { name: 'Edit sign-in method' }))
+      await user.click(screen.getByRole('switch', { name: 'Visible to agents' }))
+      await user.click(screen.getByRole('button', { name: 'Save' }))
       await user.click(screen.getByRole('button', { name: /save changes/i }))
       await waitFor(() => expect(updateMutateMock).toHaveBeenCalledTimes(2))
       expect(encodedDraft().secret.agentFieldAccess[`custom:${SIGN_IN_ID}`]).toBe('discovery')
     })
 
+    it('saves two OAuth-only methods while editing one ID and retaining opaque data and policies', async () => {
+      const user = userEvent.setup()
+      const second: CustomField = { ...binding, id: 'ABCDEFAB-1234-4234-8234-ABCDEFABCDEF', type: 'palladin.signin.v2',
+        value: { provider: 'google', account: 'work@example.test', entry: null } as never }
+      const opaque: CustomField = { ...binding, id: '12345678-1234-4234-8234-123456789012', type: 'palladin.signin.v99', value: { future: true } as never }
+      renderCredential([binding, opaque, second], { [`custom:${SIGN_IN_ID}`]: 'never', [`custom:${second.id}`]: 'discovery', [`custom:${opaque.id}`]: 'never' })
+      await user.click((await screen.findAllByRole('button', { name: 'Edit sign-in method' }))[0])
+      await user.selectOptions(screen.getByLabelText('Provider'), 'apple')
+      await user.click(screen.getByRole('button', { name: 'Save' }))
+      await user.clear(screen.getByLabelText(/^username$/i))
+      await user.clear(screen.getByLabelText(/^password$/i))
+      await user.click(screen.getByRole('button', { name: /save changes/i }))
+      await waitFor(() => expect(updateMutateMock).toHaveBeenCalledTimes(1))
+      const { draft, secret } = encodedDraft()
+      expect(draft.content.fields).toEqual([{ ...binding, type: 'palladin.signin.v2', value: { provider: 'apple', account: 'alice@example.com', entry: null } }, opaque, second])
+      expect(secret.agentFieldAccess[`custom:${SIGN_IN_ID}`]).toBe('never')
+      expect(secret.agentFieldAccess[`custom:${second.id}`]).toBe('discovery')
+      expect(secret.agentFieldAccess[`custom:${opaque.id}`]).toBe('never')
+      expect(draft.content).toMatchObject({ username: '', password: '' })
+    })
+
     it('removes the binding on save', async () => {
       const user = userEvent.setup()
       renderCredential([binding], { [`custom:${SIGN_IN_ID}`]: 'never' })
+      await user.click(await screen.findByRole('button', { name: 'Edit sign-in method' }))
       await screen.findByLabelText('Provider account')
       await user.click(screen.getByRole('button', { name: 'Remove sign-in method' }))
       await user.click(screen.getByRole('button', { name: /save changes/i }))
@@ -1128,7 +1156,7 @@ describe('EntryDetailPage — DetailsTab', () => {
       const user = userEvent.setup()
       const odd: CustomField = { ...binding, value: { provider: 'google', account: 'alice@example.com' } as never }
       renderCredential([odd], { [`custom:${SIGN_IN_ID}`]: 'never' })
-      await screen.findByText(/does not recognize/)
+      await screen.findByText('Unsupported field, kept unchanged')
       await user.type(screen.getByLabelText(/^label$/i), ' renamed')
       await user.click(screen.getByRole('button', { name: /save changes/i }))
 
@@ -1140,19 +1168,23 @@ describe('EntryDetailPage — DetailsTab', () => {
       updateMutateMock.mockImplementation((_input, options) => options.onError())
       const user = userEvent.setup()
       renderCredential([binding], { [`custom:${SIGN_IN_ID}`]: 'never' })
+      await user.click(await screen.findByRole('button', { name: 'Edit sign-in method' }))
       await screen.findByLabelText('Provider account')
       await user.selectOptions(screen.getByLabelText('Provider'), 'apple')
+      await user.click(screen.getByRole('button', { name: 'Save' }))
       await user.click(screen.getByRole('button', { name: /save changes/i }))
 
       await waitFor(() => expect(toastError).toHaveBeenCalled())
-      expect(screen.getByLabelText('Provider')).toHaveValue('apple')
+      expect(screen.getByText('Apple')).toBeInTheDocument()
       expect(screen.getByRole('button', { name: /save changes/i })).toBeEnabled()
     })
 
     it('saves a Credential with empty username and password when it has one recognized binding', async () => {
       const user = userEvent.setup()
       renderCredential([binding], { [`custom:${SIGN_IN_ID}`]: 'never' })
+      await user.click(await screen.findByRole('button', { name: 'Edit sign-in method' }))
       await screen.findByLabelText('Provider account')
+      if (screen.queryByRole('button', { name: 'Cancel' })) await user.click(screen.getByRole('button', { name: 'Cancel' }))
       await user.clear(screen.getByLabelText(/^username$/i))
       await user.clear(screen.getByLabelText(/^password$/i))
       await user.click(screen.getByRole('button', { name: /save changes/i }))
@@ -1167,8 +1199,6 @@ describe('EntryDetailPage — DetailsTab', () => {
     it.each([
       ['no binding', []],
       ['a retired two-key binding', [{ ...binding, value: { provider: 'google', account: 'alice@example.com' } as never }]],
-      ['two bindings', [binding, { ...binding, id: 'aaaaaaaa-bbbb-4ccc-8ddd-000000000002',
-        value: { provider: 'apple', account: null, entry: null } as never }]],
     ])('still requires username and password with %s', async (_, fields) => {
       const user = userEvent.setup()
       renderCredential(fields as CustomField[], Object.fromEntries(

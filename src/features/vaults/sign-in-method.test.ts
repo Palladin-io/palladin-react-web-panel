@@ -5,8 +5,8 @@ import {
   isProviderAccountDomain,
   normalizeSignInAccount,
   parseSignInBinding,
-  readSignInMethod,
-  replaceSignInMethod,
+  updateSignInMethod,
+  readSignInMethods,
 } from './sign-in-method'
 import type { CustomField } from './types'
 
@@ -52,28 +52,13 @@ describe('parseSignInBinding', () => {
   })
 })
 
-describe('readSignInMethod', () => {
-  it('reports none, recognized, unrecognized and ambiguous states', () => {
-    expect(readSignInMethod([text])).toEqual({ kind: 'none' })
-    expect(readSignInMethod([text, field('a', { provider: 'google', account: null, entry: null })])).toEqual({
-      kind: 'recognized', fieldId: 'a', binding: { provider: 'google', account: null, entry: null },
-    })
-    expect(readSignInMethod([field('a', { provider: 'google', account: 'x' })]))
-      .toEqual({ kind: 'unrecognized', fieldId: 'a' })
-    expect(readSignInMethod([
-      field('a', { provider: 'google', account: 'x', entry: null }),
-      field('b', { provider: 'apple', account: null, entry: null }),
-    ])).toEqual({ kind: 'ambiguous', fieldIds: ['a', 'b'] })
-  })
-})
-
 describe('hasRecognizedSignInMethod', () => {
-  it('is true only for exactly one recognized binding', () => {
+  it('accepts one or more recognized methods', () => {
     const recognized = field('a', { provider: 'google', account: null, entry: null })
     expect(hasRecognizedSignInMethod([text, recognized])).toBe(true)
     expect(hasRecognizedSignInMethod([text])).toBe(false)
     expect(hasRecognizedSignInMethod([field('a', { provider: 'google', account: null })])).toBe(false)
-    expect(hasRecognizedSignInMethod([recognized, field('b', { provider: 'apple', account: null, entry: null })])).toBe(false)
+    expect(hasRecognizedSignInMethod([recognized, field('b', { provider: 'apple', account: null, entry: null })])).toBe(true)
   })
 })
 
@@ -105,38 +90,28 @@ describe('normalizeSignInAccount', () => {
   })
 })
 
-describe('replaceSignInMethod', () => {
-  it('adds one binding with the given label when none exists', () => {
-    const next = replaceSignInMethod([text], { provider: 'github', account: 'octocat', entry }, 'Metoda logowania')
-    expect(next).toHaveLength(2)
-    expect(next[0]).toBe(text)
-    expect(next[1]).toMatchObject({
-      label: 'Metoda logowania', type: SIGN_IN_METHOD_FIELD_TYPE, value: { provider: 'github', account: 'octocat', entry },
-    })
-    expect(next[1].id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/)
+describe('method collection editing', () => {
+  it('adds same-provider accounts and edits/removes only the chosen stable ID', () => {
+    const first = field('ABC', { provider: 'google', account: 'personal', entry: null }, 'palladin.signin.v1')
+    const opaque = field('opaque', { future: true }, 'palladin.signin.v99')
+    const second = field('second', { provider: 'google', account: 'work', entry: null }, 'palladin.signin.v2')
+    const original = [first, text, opaque, second]
+    expect(readSignInMethods(original)).toHaveLength(2)
+    const edited = updateSignInMethod(original, 'ABC', { provider: 'apple', account: null, entry: null }, 'new')
+    expect(edited).toEqual([{ ...first, type: 'palladin.signin.v2', value: { provider: 'apple', account: null, entry: null } }, text, opaque, second])
+    expect(updateSignInMethod(edited, 'second', null, '')).toEqual(edited.slice(0, 3))
+    const added = updateSignInMethod(original, null, { provider: 'google', account: 'third', entry: null }, 'new')
+    expect(added.slice(0, 4)).toEqual(original)
+    expect(added[4].type).toBe('palladin.signin.v2')
+    expect(hasRecognizedSignInMethod(added)).toBe(true)
+    expect(updateSignInMethod([second], 'second', null, '')).toEqual([])
   })
-
-  it('edits a single recognized binding in place, keeping id, label and position', () => {
-    const existing = { ...field('keep', { provider: 'google', account: null, entry: null }), label: 'Custom label' }
-    const next = replaceSignInMethod([existing, text], { provider: 'apple', account: 'me', entry: null }, 'Sign-in method')
-    expect(next).toEqual([{ ...existing, value: { provider: 'apple', account: 'me', entry: null } }, text])
-  })
-
-  it('replaces ambiguous and retired bindings with exactly one new field', () => {
-    const fields = [
-      text,
-      field('a', { provider: 'google', account: 'x', entry: null }),
-      field('b', { provider: 'google', account: 'x' }),
-    ]
-    const next = replaceSignInMethod(fields, { provider: 'microsoft', account: null, entry: null }, 'Sign-in method')
-    expect(next).toHaveLength(2)
-    expect(next[0]).toBe(text)
-    expect(next[1].id).not.toBe('a')
-    expect(next[1].value).toEqual({ provider: 'microsoft', account: null, entry: null })
-  })
-
-  it('removes every binding and leaves other fields untouched', () => {
-    const fields = [field('a', { provider: 'google', account: null, entry: null }), text, field('b', 'garbage')]
-    expect(replaceSignInMethod(fields, null, 'Sign-in method')).toEqual([text])
+  it('preserves malformed and future fields when an unknown ID is edited', () => {
+    const opaque = field('opaque', { provider: 'google', future: true }, 'palladin.signin.v2')
+    expect(updateSignInMethod([opaque], 'missing', { provider: 'google', account: null, entry: null }, '')).toEqual([opaque])
+    expect(readSignInMethods([opaque])).toEqual([])
+    const future = field('future', { provider: 'google', account: null, entry: null }, 'palladin.signin.v99')
+    expect(readSignInMethods([future])).toEqual([])
+    expect(hasRecognizedSignInMethod([future])).toBe(false)
   })
 })

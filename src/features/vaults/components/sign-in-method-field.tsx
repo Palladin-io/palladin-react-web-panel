@@ -1,9 +1,14 @@
 import { useState } from 'react'
+import { createPortal } from 'react-dom'
+import { ModalShell } from '../../../shared/components/modal-shell'
+import { DialogFooter } from '../../../shared/components/dialog-footer'
+import { SectionHeader } from './section-header'
 import { useTranslation } from 'react-i18next'
 import { AddButton } from '../../../shared/components/add-button'
 import { Button } from '../../../shared/components/button'
 import { FormInput } from '../../../shared/components/form-field'
 import { FormSelect } from '../../../shared/components/form-select'
+import { Tooltip } from '../../../shared/components/tooltip'
 import { ToggleSwitch } from '../../../shared/components/toggle-switch'
 import {
   SIGN_IN_ACCOUNT_MAX_LENGTH,
@@ -11,8 +16,8 @@ import {
   type SignInBinding,
   type SignInProvider,
   normalizeSignInAccount,
-  readSignInMethod,
-  replaceSignInMethod,
+  readSignInMethods,
+  updateSignInMethod,
 } from '../sign-in-method'
 import type { CustomField } from '../types'
 import { useSignInAccountCandidates, useSignInEntryLabel } from '../use-sign-in-account-candidates'
@@ -21,6 +26,7 @@ export interface SignInMethodAgentVisibility {
   isVisible: (fieldId: string) => boolean
   onChange: (fieldId: string, visible: boolean) => void
   disabled?: boolean
+  newMethodVisible?: boolean
 }
 
 export interface SignInMethodFieldProps {
@@ -34,99 +40,65 @@ export interface SignInMethodFieldProps {
   agentVisibility?: SignInMethodAgentVisibility
 }
 
-/**
- * Dedicated Credential "Sign-in method" (`palladin.signin.v1`) editor. A single
- * recognized binding is edited through a provider select, an optional link to
- * the provider's own discoverable Palladin Credential and an optional account
- * input; unrecognized or ambiguous bindings are never decoded into the form
- * and stay untouched until the user explicitly replaces or removes them. Every
- * edit goes through {@link replaceSignInMethod}, so at most one binding remains.
- */
+/** Login-only collection editor; changes are committed from the modal by stable field ID. */
 export function SignInMethodField({ fields, onChange, disabled, entryId, agentVisibility }: SignInMethodFieldProps) {
   const { t } = useTranslation()
-  const state = readSignInMethod(fields)
-  const [choosing, setChoosing] = useState(false)
-
-  const apply = (binding: SignInBinding | null) =>
-    onChange(replaceSignInMethod(fields, binding, t('vault.entries.signInMethod.title')))
-
-  if (state.kind === 'recognized') {
-    return (
-      <div className="flex flex-col gap-3">
-        <RecognizedBinding
-          key={state.fieldId}
-          binding={state.binding}
-          onChange={apply}
-          disabled={disabled}
-          entryId={entryId}
-        />
-        {agentVisibility ? (
-          <div className="flex items-center justify-between gap-3">
-            <div className="min-w-0">
-              <div className="text-ui text-[var(--cv-t2)]">{t('vault.entries.signInMethod.agentVisible')}</div>
-              <div className="text-meta text-[var(--cv-t3)]">{t('vault.entries.signInMethod.agentVisibleHint')}</div>
-            </div>
-            <ToggleSwitch
-              label={t('vault.entries.signInMethod.agentVisible')}
-              checked={agentVisibility.isVisible(state.fieldId)}
-              onChange={(visible) => agentVisibility.onChange(state.fieldId, visible)}
-              disabled={disabled || agentVisibility.disabled}
-            />
-          </div>
-        ) : null}
-      </div>
-    )
+  const methods = readSignInMethods(fields)
+  const [editing, setEditing] = useState<{ fieldId: string | null; binding: SignInBinding | null; visible: boolean } | null>(null)
+  const close = () => setEditing(null)
+  const save = () => {
+    if (!editing?.binding) return
+    const next = updateSignInMethod(fields, editing.fieldId, editing.binding, t('vault.entries.signInMethod.title'))
+    onChange(next)
+    const id = editing.fieldId ?? next[next.length - 1].id
+    // Preserve existing policy unless the owner explicitly changed its switch.
+    if (agentVisibility && (editing.fieldId === null || editing.visible !== agentVisibility.isVisible(id))) agentVisibility.onChange(id, editing.visible)
+    close()
   }
-
-  if (choosing) {
-    return (
-      <div className="flex flex-col gap-3 rounded-xl border border-[var(--cv-input-border)] p-3">
-        <ProviderSelect
-          id="entry-sign-in-provider-new"
-          value=""
-          disabled={disabled}
-          onChange={(provider) => {
-            apply({ provider, account: null, entry: null })
-            setChoosing(false)
-          }}
-        />
-        <div className="flex justify-end">
-          <Button variant="ghost" size="sm" onClick={() => setChoosing(false)} disabled={disabled}>
-            {t('common.cancel')}
-          </Button>
-        </div>
-      </div>
-    )
-  }
-
-  if (state.kind === 'none') {
-    return (
-      <div className="flex items-center gap-3 rounded-xl border border-dashed border-[var(--cv-input-border)] px-3 py-2.5">
-        <div className="min-w-0 flex-1">
-          <div className="text-ui text-[var(--cv-t1)]">{t('vault.entries.signInMethod.emptyTitle')}</div>
-          <div className="text-meta text-[var(--cv-t3)]">{t('vault.entries.signInMethod.emptySubtitle')}</div>
-        </div>
-        <AddButton onClick={() => setChoosing(true)} disabled={disabled} label={t('vault.entries.signInMethod.add')} />
-      </div>
-    )
-  }
-
   return (
-    <div className="flex flex-col gap-3 rounded-xl border border-[var(--cv-input-border)] px-3 py-2.5">
-      <p className="text-meta text-[var(--cv-t2)]">
-        {t(state.kind === 'ambiguous'
-          ? 'vault.entries.signInMethod.ambiguous'
-          : 'vault.entries.signInMethod.unrecognized')}
-      </p>
-      <div className="flex justify-end gap-2">
-        <Button variant="ghost" size="sm" icon="delete" onClick={() => apply(null)} disabled={disabled}>
-          {t('vault.entries.signInMethod.remove')}
-        </Button>
-        <Button variant="subtle" size="sm" icon="refresh" onClick={() => setChoosing(true)} disabled={disabled}>
-          {t('vault.entries.signInMethod.replace')}
-        </Button>
+    <section className="ph-no-capture flex flex-col gap-3">
+      <div className="flex items-center gap-2">
+        <div className="min-w-0 flex-1"><SectionHeader>{t('vault.entries.signInMethod.title')}</SectionHeader></div>
+        <AddButton label={t('vault.entries.signInMethod.add')} disabled={disabled}
+          onClick={() => setEditing({ fieldId: null, binding: null, visible: agentVisibility?.newMethodVisible ?? false })} />
       </div>
-    </div>
+      {methods.length > 0 ? <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+        {methods.map((method) => <div key={method.fieldId}
+          className="flex min-w-0 items-center gap-3 rounded-lg border border-[var(--cv-input-border)] p-3">
+          <img src={`/sign-in-providers/${method.binding.provider}.svg`} alt="" className="h-6 w-6 shrink-0 object-contain" />
+          <div className="min-w-0 flex-1">
+            <div className="truncate text-ui font-medium text-[var(--cv-t1)]">{t(`vault.entries.signInMethod.providers.${method.binding.provider}`)}</div>
+            <Tooltip content={method.binding.account ?? t('vault.entries.signInMethod.accountNotSpecified')} className="block truncate text-meta text-[var(--cv-t3)]">
+              {method.binding.account ?? t('vault.entries.signInMethod.accountNotSpecified')}
+            </Tooltip>
+          </div>
+          <Button variant="ghost" size="sm" icon="edit" aria-label={t('vault.entries.signInMethod.edit')}
+            disabled={disabled} onClick={() => setEditing({ ...method, visible: agentVisibility?.isVisible(method.fieldId) ?? false })} />
+        </div>)}
+      </div> : null}
+      {editing ? createPortal(<ModalShell title={t(editing.fieldId ? 'vault.entries.signInMethod.edit' : 'vault.entries.signInMethod.add')}
+        ariaLabel={t('vault.entries.signInMethod.title')} onClose={close} trapFocus width={560}
+        footer={<DialogFooter>
+          <Button variant="subtle" size="sm" className="flex-1" onClick={close}>{t('common.cancel')}</Button>
+          <Button variant="accent" size="sm" className="flex-[2]" disabled={disabled || !editing.binding} onClick={save}>{t('vault.entries.signInMethod.save')}</Button>
+        </DialogFooter>}>
+        <div className="ph-no-capture flex flex-col gap-3">
+          {editing.binding ? <RecognizedBinding binding={editing.binding} entryId={entryId} disabled={disabled}
+            onChange={(binding) => setEditing({ ...editing, binding })} /> :
+            <ProviderSelect id="entry-sign-in-provider-new" value="" disabled={disabled}
+              onChange={(provider) => setEditing({ ...editing, binding: { provider, account: null, entry: null } })} />}
+          {agentVisibility && editing.binding ? <div className="flex items-center justify-between gap-3">
+            <span className="text-ui text-[var(--cv-t2)]">{t('vault.entries.signInMethod.agentVisible')}</span>
+            <ToggleSwitch label={t('vault.entries.signInMethod.agentVisible')} checked={editing.visible}
+              onChange={(visible) => setEditing({ ...editing, visible })} disabled={disabled || agentVisibility.disabled} />
+          </div> : null}
+          {editing.fieldId ? <Button variant="ghost" size="sm" icon="delete" disabled={disabled}
+            onClick={() => { onChange(updateSignInMethod(fields, editing.fieldId, null, '')); close() }}>
+            {t('vault.entries.signInMethod.remove')}
+          </Button> : null}
+        </div>
+      </ModalShell>, document.body) : null}
+    </section>
   )
 }
 
@@ -139,7 +111,7 @@ function RecognizedBinding({
   entryId,
 }: {
   binding: SignInBinding
-  onChange: (next: SignInBinding | null) => void
+  onChange: (next: SignInBinding) => void
   disabled?: boolean
   entryId?: string
 }) {
@@ -229,11 +201,7 @@ function RecognizedBinding({
           ))}
         </FormSelect>
       ) : null}
-      <div className="flex justify-end">
-        <Button variant="ghost" size="sm" icon="delete" onClick={() => onChange(null)} disabled={disabled}>
-          {t('vault.entries.signInMethod.remove')}
-        </Button>
-      </div>
+
     </div>
   )
 }

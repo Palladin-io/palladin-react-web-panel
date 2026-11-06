@@ -38,7 +38,7 @@ import {
 } from '../entry-blob'
 import { CustomFieldsEditor } from './custom-fields-editor'
 import { SignInMethodField } from './sign-in-method-field'
-import { hasRecognizedSignInMethod, isSignInMethodField, replaceSignInMethod } from '../sign-in-method'
+import { hasRecognizedSignInMethod, isSignInMethodField } from '../sign-in-method'
 import { CredentialTotpField } from './credential-totp-field'
 import { EntryIconButton } from './entry-icon-button'
 import { ScriptEditor } from './script-editor'
@@ -353,7 +353,7 @@ function CreateEntryModalBody({ vault, onClose, onCreated }: CreateEntryModalBod
                 setDiscoverable(true)
                 setPolicyOverrides({})
                 // A sign-in method is meaningful only on a Credential; a new Entry has nothing to preserve.
-                if (nextType !== ENTRY_TYPE_CREDENTIAL) setCustomFields((fields) => replaceSignInMethod(fields, null, ''))
+                if (nextType !== ENTRY_TYPE_CREDENTIAL) setCustomFields((fields) => fields.filter((field) => !isSignInMethodField(field)))
                 setKeyValueError(false)
                 setUsernameError(false)
                 setPasswordError(false)
@@ -585,15 +585,6 @@ function CreateEntryModalBody({ vault, onClose, onCreated }: CreateEntryModalBod
               <CredentialTotpField value={credentialTotp} onChange={setCredentialTotp}
                 onApply={(field) => { void submitEntry(mergeCredentialTotp(field, customFields)) }}
                 disabled={isPending} />
-              <SectionHeader>{t('vault.entries.signInMethod.title')}</SectionHeader>
-              <SignInMethodField fields={customFields} onChange={setCustomFields} disabled={isPending}
-                agentVisibility={{
-                  isVisible: (fieldId) => policy.fields[`custom:${fieldId}`] === 'discovery',
-                  onChange: (fieldId, visible) => setPolicyOverrides((current) => ({
-                    ...current, [`custom:${fieldId}`]: visible ? 'discovery' : 'never',
-                  })),
-                  disabled: !discoverable,
-                }} />
             </>
           ) : (
             <>
@@ -661,6 +652,17 @@ function CreateEntryModalBody({ vault, onClose, onCreated }: CreateEntryModalBod
             hideSignInMethod={type === ENTRY_TYPE_CREDENTIAL} />
 
           <NotesField id="entry-notes" value={notes} onChange={setNotes} disabled={isPending} />
+          {type === ENTRY_TYPE_CREDENTIAL ? (
+            <SignInMethodField fields={customFields} onChange={setCustomFields} disabled={isPending}
+              agentVisibility={{
+                newMethodVisible: discoverable,
+                isVisible: (fieldId) => policy.fields[`custom:${fieldId}`] === 'discovery',
+                onChange: (fieldId, visible) => setPolicyOverrides((current) => ({
+                  ...current, [`custom:${fieldId}`]: visible ? 'discovery' : 'never',
+                })),
+                disabled: !discoverable,
+              }} />
+          ) : null}
 
       </form>
     </ModalShell>

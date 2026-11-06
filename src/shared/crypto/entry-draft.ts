@@ -1,5 +1,5 @@
 import { isTotpField, type CustomField, type EntryPlaintext, type ScriptRef } from '../../features/vaults/types'
-import { SIGN_IN_FIELD_TYPE, defaultCredentialAgentFieldAccess, signInAllowedAccess } from '@palladin/crypto'
+import { SIGN_IN_FIELD_TYPE, SIGN_IN_FIELD_TYPE_V2, defaultCredentialAgentFieldAccess, signInAllowedAccess, signInV2AllowedAccess } from '@palladin/crypto'
 import { ENTRY_TYPE_CREDENTIAL, ENTRY_TYPE_CREDIT_CARD, ENTRY_TYPE_KEY, type EntryType } from '../types/entry-type'
 import { formatOtpauthUri, parseOtpauthUri } from './totp'
 import {
@@ -38,7 +38,7 @@ export function allowedAgentFieldAccess(
   if (fieldId === ENTRY_FIELD.notes) return type === 2 ? RUNTIME_OR_NEVER : VALUE_OR_NEVER
   if (fieldId === ENTRY_FIELD.totp || customType === 'totp') return ['never', 'onGrantDerived']
   if (fieldId.startsWith('custom:')) {
-    if (customType === SIGN_IN_FIELD_TYPE) return signInFieldAccess(type, customValue)
+    if (customType === SIGN_IN_FIELD_TYPE || customType === SIGN_IN_FIELD_TYPE_V2) return signInFieldAccess(type, customValue, customType, fieldId)
     if (customType !== undefined && !isStandardValueField(customType)) return ['never']
     return type === 2 ? RUNTIME_OR_NEVER : ['never', 'discovery', 'onGrantValue']
   }
@@ -61,14 +61,14 @@ function isStandardValueField(customType: string): boolean {
 }
 
 /** A sign-in method may reach Discovery only on a Credential with a well-formed value — never a grant. */
-export function signInFieldAccess(type: EntryType, value: unknown): readonly AgentFieldAccess[] {
+export function signInFieldAccess(type: EntryType, value: unknown, fieldType: string = SIGN_IN_FIELD_TYPE, fieldId = ''): readonly AgentFieldAccess[] {
   const entryType = type === ENTRY_TYPE_CREDENTIAL ? 'credential' : 'other'
-  return signInAllowedAccess(entryType, { id: '', type: SIGN_IN_FIELD_TYPE, value }) as readonly AgentFieldAccess[]
+  return (fieldType === SIGN_IN_FIELD_TYPE_V2 ? signInV2AllowedAccess : signInAllowedAccess)(entryType, { id: fieldId, type: fieldType, value }) as readonly AgentFieldAccess[]
 }
 
 /** Default for a newly written sign-in method: Discovery iff the service Credential is discoverable. */
-function newSignInAccess(type: EntryType, value: unknown, discoverable: boolean): AgentFieldAccess {
-  return discoverable && signInFieldAccess(type, value).includes('discovery') ? 'discovery' : 'never'
+function newSignInAccess(type: EntryType, value: unknown, discoverable: boolean, fieldType: string = SIGN_IN_FIELD_TYPE, fieldId = ''): AgentFieldAccess {
+  return discoverable && signInFieldAccess(type, value, fieldType, fieldId).includes('discovery') ? 'discovery' : 'never'
 }
 
 function withNonStandardFieldDefaults(
@@ -76,8 +76,8 @@ function withNonStandardFieldDefaults(
 ): AgentVisibilityPolicy {
   for (const field of fields) {
     if (field.type === 'totp' || isStandardValueField(field.type)) continue
-    policy.fields[field.id.startsWith('custom:') ? field.id : `custom:${field.id}`] = field.type === SIGN_IN_FIELD_TYPE
-      ? newSignInAccess(type, field.value, policy.discoverable)
+    policy.fields[field.id.startsWith('custom:') ? field.id : `custom:${field.id}`] = (field.type === SIGN_IN_FIELD_TYPE || field.type === SIGN_IN_FIELD_TYPE_V2)
+      ? newSignInAccess(type, field.value, policy.discoverable, field.type, field.id.startsWith('custom:') ? field.id : `custom:${field.id}`)
       : 'never'
   }
   return policy
@@ -239,9 +239,9 @@ export function withNewSignInMethodPolicy(
   const existing = new Set(previous.map((field) => field.id))
   const fields = { ...policy.fields }
   for (const field of next) {
-    if (field.type !== SIGN_IN_FIELD_TYPE || existing.has(field.id)) continue
+    if ((field.type !== SIGN_IN_FIELD_TYPE && field.type !== SIGN_IN_FIELD_TYPE_V2) || existing.has(field.id)) continue
     const id = field.id.startsWith('custom:') ? field.id : `custom:${field.id}`
-    fields[id] ??= newSignInAccess(type, field.value, policy.discoverable)
+    fields[id] ??= newSignInAccess(type, field.value, policy.discoverable, field.type, field.id.startsWith('custom:') ? field.id : `custom:${field.id}`)
   }
   return { ...policy, fields }
 }
