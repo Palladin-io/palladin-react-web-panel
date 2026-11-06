@@ -169,3 +169,5 @@ its original `signIn` representation. Unknown versions remain fail-closed.
 One or more recognized methods permit OAuth-only Credentials with empty username
 and password. Removing the last recognized method restores normal validation.
 Other Entry types retain their validation and do not expose this method editor.
+
+The Login-only sign-in method editor uses a horizontally scrollable provider-logo rail with separate previous/next controls. Scrolling never changes the provider; activation is explicit. Saved method cards retain their layout and exact field identities. The scoped editor height transition follows asynchronous candidates and manual account changes without remounting controls, with reduced-motion support. The heading action uses the same `px-3` content gutter plus 1px card border as the TOTP card action. Generic provider suggestions use only the configured `VITE_CONTACT_EMAIL` and localized subject; account/Entry data is never included. Generic builds leave this optional contact unset; staging bundles require repository `CONTACT_EMAIL`, injected by the artifact workflow.
