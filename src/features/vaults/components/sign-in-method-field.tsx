@@ -215,8 +215,17 @@ function ProviderChoices({
   return (
     <div className="min-w-0">
       <div className="mb-2 flex items-center justify-between gap-2">
-        <span className="text-meta text-[var(--cv-label-text)]">{t('vault.entries.signInMethod.provider')}</span>
-        <div className="flex gap-1">
+        <div className="min-w-0 text-meta">
+          <span className="text-[var(--cv-label-text)]">{t('vault.entries.signInMethod.provider')}</span>
+          {env.contactEmail ? <>
+            <span aria-hidden="true" className="mx-2 text-[var(--cv-t3)]">|</span>
+            <a className="text-[var(--cv-primary)] underline underline-offset-2"
+              href={`mailto:${env.contactEmail}?subject=${encodeURIComponent(t('vault.entries.signInMethod.missingProviderSubject'))}`}>
+              {t('vault.entries.signInMethod.missingProvider')}
+            </a>
+          </> : null}
+        </div>
+        <div className="flex shrink-0 gap-1">
           <Button variant="ghost" size="sm" icon="chevron_left" aria-label={t('vault.entries.signInMethod.previousProviders')} disabled={disabled} onClick={() => scroll(-1)} />
           <Button variant="ghost" size="sm" icon="chevron_right" aria-label={t('vault.entries.signInMethod.nextProviders')} disabled={disabled} onClick={() => scroll(1)} />
         </div>
@@ -230,10 +239,6 @@ function ProviderChoices({
           {t(`vault.entries.signInMethod.providers.${provider}`)}
         </button>)}
       </div>
-      {env.contactEmail ? <a className="mb-2 inline-block text-meta text-[var(--cv-primary)] underline underline-offset-2"
-        href={`mailto:${env.contactEmail}?subject=${encodeURIComponent(t('vault.entries.signInMethod.missingProviderSubject'))}`}>
-        {t('vault.entries.signInMethod.missingProvider')}
-      </a> : null}
     </div>
   )
 }
@@ -252,7 +257,7 @@ function AnimatedEditorBody({ children }: { children: ReactNode }) {
     observer.observe(element)
     return () => observer.disconnect()
   }, [])
-  return <div className="transition-[height] duration-200 ease-out motion-reduce:transition-none" style={{ height }}>
+  return <div className="overflow-clip transition-[height] duration-200 ease-out motion-reduce:transition-none" style={{ height }}>
     <div ref={content} className="ph-no-capture flex flex-col gap-3">{children}</div>
   </div>
 }
