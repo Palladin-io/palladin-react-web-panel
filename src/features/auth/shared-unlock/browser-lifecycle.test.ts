@@ -16,7 +16,7 @@ function fixture() {
   function newPort() { return { onMessage: event<[unknown]>(), onDisconnect: event<[]>(), postMessage: vi.fn(), disconnect: vi.fn() } }
   const runtime: SharedUnlockNativeRuntime = { connect: vi.fn(() => { const port = newPort(); ports.push(port); return port }) }
   const options = { window: owner, document, extensionId: 'a'.repeat(32), apiUrl: 'https://api.example.test', runtime: vi.fn(() => runtime as SharedUnlockNativeRuntime | undefined), retireDocument: vi.fn() }
-  const accept = (index = ports.length - 1) => ports[index].onMessage.emit({ type: 'ready', protocol: 'palladin.shared-unlock.browser.v1',
+  const accept = (index = ports.length - 1, protocol = 'palladin.shared-unlock.browser.v1') => ports[index].onMessage.emit({ type: 'ready', protocol,
     apiUrl: options.apiUrl, webOrigin: owner.location.origin, extensionId: options.extensionId, webNonce: 'A'.repeat(43),
     channelId: 'E'.repeat(43), documentBinding: `7/document/${'E'.repeat(43)}` })
   return { owner, document, runtime, options, ports, accept }
@@ -25,6 +25,41 @@ const settle = async () => { for (let i = 0; i < 15; i++) await Promise.resolve(
 beforeEach(() => vi.useFakeTimers())
 afterEach(() => { vi.clearAllTimers(); vi.useRealTimers() })
 describe('document-owned shared unlock connection', () => {
+  it('falls back for an old extension handshake and keeps the legacy route usable', async () => {
+    const f = fixture(), c = startSharedUnlockBrowserLifecycle({ ...f.options, authoritySync: true });
+    await settle(); expect(f.runtime.connect).toHaveBeenLastCalledWith(f.options.extensionId, { name: 'palladin.shared-unlock.browser.v2' });
+    f.ports[0].onDisconnect.emit(); await settle(); await vi.advanceTimersByTimeAsync(1000);
+    expect(f.runtime.connect).toHaveBeenLastCalledWith(f.options.extensionId, { name: 'palladin.shared-unlock.browser.v1' });
+    f.accept(); await settle(); expect(c.currentRoute()?.authoritySync).toBe(false); c.close();
+  });
+  it('retries v2 after a legacy connection and after local document retirement', async () => {
+    const f = fixture(), c = startSharedUnlockBrowserLifecycle({ ...f.options, authoritySync: true });
+    await settle(); f.owner.dispatchEvent(new Event('pagehide')); await settle();
+    f.owner.dispatchEvent(new Event('pageshow')); await settle();
+    expect(f.runtime.connect).toHaveBeenLastCalledWith(f.options.extensionId, { name: 'palladin.shared-unlock.browser.v2' });
+    f.ports[1].onDisconnect.emit(); await settle(); await vi.advanceTimersByTimeAsync(1000);
+    f.accept(); await settle(); expect(c.currentRoute()?.authoritySync).toBe(false);
+    f.ports[2].onDisconnect.emit(); await settle(); await vi.advanceTimersByTimeAsync(1000);
+    expect(f.runtime.connect).toHaveBeenLastCalledWith(f.options.extensionId, { name: 'palladin.shared-unlock.browser.v2' });
+    f.accept(3, 'palladin.shared-unlock.browser.v2'); await settle(); expect(c.currentRoute()?.authoritySync).toBe(true); c.close();
+  });
+  it('re-probes v2 once after a transient failure even while the fallback stays connected', async () => {
+    const f = fixture(), c = startSharedUnlockBrowserLifecycle({ ...f.options, authoritySync: true });
+    await settle(); f.ports[0].onDisconnect.emit(); await settle(); await vi.advanceTimersByTimeAsync(1000);
+    f.accept(); await settle(); expect(c.currentRoute()?.authoritySync).toBe(false);
+    await vi.advanceTimersByTimeAsync(30_000);
+    expect(f.runtime.connect).toHaveBeenLastCalledWith(f.options.extensionId, { name: 'palladin.shared-unlock.browser.v2' });
+    f.ports[2].onDisconnect.emit(); await settle(); await vi.advanceTimersByTimeAsync(1000);
+    f.accept(); await settle(); await vi.advanceTimersByTimeAsync(60_000);
+    expect(f.ports).toHaveLength(4); expect(c.currentRoute()?.authoritySync).toBe(false); c.close();
+  });
+  it('never downgrades an established v2 operation failure', async () => {
+    const f = fixture(), c = startSharedUnlockBrowserLifecycle({ ...f.options, authoritySync: true });
+    await settle(); f.accept(0, 'palladin.shared-unlock.browser.v2'); await settle();
+    expect(c.currentRoute()?.authoritySync).toBe(true);
+    f.ports[0].onMessage.emit({ invalid: true }); await settle(); await vi.advanceTimersByTimeAsync(1000);
+    expect(f.runtime.connect).toHaveBeenLastCalledWith(f.options.extensionId, { name: 'palladin.shared-unlock.browser.v2' }); c.close();
+  });
   it('reports route readiness and does not publish a retired attempt failure after teardown', async () => {
     const f = fixture(), onStatus = vi.fn()
     const c = startSharedUnlockBrowserLifecycle({ ...f.options, onStatus })
