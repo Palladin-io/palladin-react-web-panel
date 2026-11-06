@@ -19,6 +19,7 @@ export function SharedUnlockBrowserProvider() {
       ? createFirefoxSharedUnlockRuntime(window, document, env.sharedUnlockExtensionId) : undefined
     const lifecycle = startSharedUnlockBrowserLifecycle({
       onReady: coordinateSharedUnlockBrowser,
+      authoritySync: env.sharedUnlockTransport === 'chromium',
       onStatus: setSharedUnlockBrowserStatus,
       extensionId: env.sharedUnlockExtensionId, apiUrl: env.apiUrl, window, document,
       runtime: () => {
