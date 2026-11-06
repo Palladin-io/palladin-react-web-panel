@@ -7,12 +7,12 @@ import { useTranslation } from 'react-i18next'
 import { AddButton } from '../../../shared/components/add-button'
 import { Button } from '../../../shared/components/button'
 import { FormInput } from '../../../shared/components/form-field'
-import { FormSelect } from '../../../shared/components/form-select'
+import { HOVERABLE_CARD_CLASSES } from '../../../shared/lib/styles'
+import { Icon } from '../../../shared/components/icon'
 import { Tooltip } from '../../../shared/components/tooltip'
 import { ToggleSwitch } from '../../../shared/components/toggle-switch'
 import {
   SIGN_IN_ACCOUNT_MAX_LENGTH,
-  SIGN_IN_PROVIDERS,
   type SignInBinding,
   type SignInProvider,
   normalizeSignInAccount,
@@ -21,6 +21,8 @@ import {
 } from '../sign-in-method'
 import type { CustomField } from '../types'
 import { useSignInAccountCandidates, useSignInEntryLabel } from '../use-sign-in-account-candidates'
+
+const PROVIDER_DISPLAY_ORDER = ['google', 'github', 'apple', 'microsoft', 'facebook'] as const satisfies readonly SignInProvider[]
 
 export interface SignInMethodAgentVisibility {
   isVisible: (fieldId: string) => boolean
@@ -44,10 +46,10 @@ export interface SignInMethodFieldProps {
 export function SignInMethodField({ fields, onChange, disabled, entryId, agentVisibility }: SignInMethodFieldProps) {
   const { t } = useTranslation()
   const methods = readSignInMethods(fields)
-  const [editing, setEditing] = useState<{ fieldId: string | null; binding: SignInBinding | null; visible: boolean } | null>(null)
+  const [editing, setEditing] = useState<{ fieldId: string | null; binding: SignInBinding; visible: boolean } | null>(null)
   const close = () => setEditing(null)
   const save = () => {
-    if (!editing?.binding) return
+    if (!editing) return
     const next = updateSignInMethod(fields, editing.fieldId, editing.binding, t('vault.entries.signInMethod.title'))
     onChange(next)
     const id = editing.fieldId ?? next[next.length - 1].id
@@ -60,12 +62,12 @@ export function SignInMethodField({ fields, onChange, disabled, entryId, agentVi
       <div className="flex items-center gap-2">
         <div className="min-w-0 flex-1"><SectionHeader>{t('vault.entries.signInMethod.title')}</SectionHeader></div>
         <AddButton label={t('vault.entries.signInMethod.add')} disabled={disabled}
-          onClick={() => setEditing({ fieldId: null, binding: null, visible: agentVisibility?.newMethodVisible ?? false })} />
+          onClick={() => setEditing({ fieldId: null, binding: { provider: 'google', account: null, entry: null }, visible: agentVisibility?.newMethodVisible ?? false })} />
       </div>
       {methods.length > 0 ? <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
         {methods.map((method) => <div key={method.fieldId}
           className="flex min-w-0 items-center gap-3 rounded-lg border border-[var(--cv-input-border)] p-3">
-          <img src={`/sign-in-providers/${method.binding.provider}.svg`} alt="" className="h-6 w-6 shrink-0 object-contain" />
+          <img src={`/sign-in-providers/${method.binding.provider}.svg`} alt="" className={`h-6 w-6 shrink-0 object-contain ${method.binding.provider === 'apple' || method.binding.provider === 'github' ? 'brightness-0 dark:invert' : ''}`}  />
           <div className="min-w-0 flex-1">
             <div className="truncate text-ui font-medium text-[var(--cv-t1)]">{t(`vault.entries.signInMethod.providers.${method.binding.provider}`)}</div>
             <Tooltip content={method.binding.account ?? t('vault.entries.signInMethod.accountNotSpecified')} className="block truncate text-meta text-[var(--cv-t3)]">
@@ -80,15 +82,14 @@ export function SignInMethodField({ fields, onChange, disabled, entryId, agentVi
         ariaLabel={t('vault.entries.signInMethod.title')} onClose={close} trapFocus width={560}
         footer={<DialogFooter>
           <Button variant="subtle" size="sm" className="flex-1" onClick={close}>{t('common.cancel')}</Button>
-          <Button variant="accent" size="sm" className="flex-[2]" disabled={disabled || !editing.binding} onClick={save}>{t('vault.entries.signInMethod.save')}</Button>
+          <Button variant="accent" size="sm" className="flex-[2]" disabled={disabled} onClick={save}>{t('vault.entries.signInMethod.save')}</Button>
         </DialogFooter>}>
         <div className="ph-no-capture flex flex-col gap-3">
-          {editing.binding ? <RecognizedBinding binding={editing.binding} entryId={entryId} disabled={disabled}
-            onChange={(binding) => setEditing({ ...editing, binding })} /> :
-            <ProviderSelect id="entry-sign-in-provider-new" value="" disabled={disabled}
-              onChange={(provider) => setEditing({ ...editing, binding: { provider, account: null, entry: null } })} />}
-          {agentVisibility && editing.binding ? <div className="flex items-center justify-between gap-3">
-            <span className="text-ui text-[var(--cv-t2)]">{t('vault.entries.signInMethod.agentVisible')}</span>
+          <p className="text-meta text-[var(--cv-t3)]">{t('vault.entries.signInMethod.editorHint')}</p>
+          <RecognizedBinding binding={editing.binding} entryId={entryId} disabled={disabled}
+            onChange={(binding) => setEditing({ ...editing, binding })} />
+          {agentVisibility ? <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0"><span className="text-ui text-[var(--cv-t2)]">{t('vault.entries.signInMethod.agentVisible')}</span><p className="mt-1 text-meta text-[var(--cv-t3)]">{t('vault.entries.signInMethod.visibilityHint')}</p></div>
             <ToggleSwitch label={t('vault.entries.signInMethod.agentVisible')} checked={editing.visible}
               onChange={(visible) => setEditing({ ...editing, visible })} disabled={disabled || agentVisibility.disabled} />
           </div> : null}
@@ -151,92 +152,64 @@ function RecognizedBinding({
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex flex-col gap-3 sm:flex-row">
-        <div className="sm:w-44 sm:shrink-0">
-          <ProviderSelect
-            id="entry-sign-in-provider"
-            value={binding.provider}
-            disabled={disabled}
-            onChange={(provider) => onChange({ provider, account: binding.account, entry: null })}
-          />
-        </div>
-        <div className="min-w-0 flex-1">
-          <FormInput
-            id="entry-sign-in-account"
-            label={t('vault.entries.signInMethod.account')}
-            value={accountShown}
-            onChange={(e) => changeAccount(e.target.value)}
-            placeholder={t('vault.entries.signInMethod.accountPlaceholder')}
-            maxLength={SIGN_IN_ACCOUNT_MAX_LENGTH}
-            autoComplete="off"
-            data-1p-ignore
-            data-lpignore="true"
-            disabled={disabled}
-          />
-        </div>
+      <ProviderChoices id="entry-sign-in-provider" value={binding.provider} disabled={disabled}
+        onChange={(provider) => onChange({ provider, account: binding.account, entry: null })} />
+      <div role="group" aria-label={t('vault.entries.signInMethod.palladinAccount')} className="flex flex-col gap-2">
+        <span className="text-meta text-[var(--cv-label-text)]">{t('vault.entries.signInMethod.providerAccountTitle', { provider: t(`vault.entries.signInMethod.providers.${binding.provider}`) })}</span>
+        {binding.entry && !linkedIsCandidate ? <button type="button" disabled aria-pressed className={accountChoiceClasses}>
+          <img src={`/sign-in-providers/${binding.provider}.svg`} alt="" className={`h-6 w-6 shrink-0 object-contain ${binding.provider === 'apple' || binding.provider === 'github' ? 'brightness-0 dark:invert' : ''}`} />
+          <span className="min-w-0 flex-1 text-left"><span className="block truncate font-medium">{linkedLabel ?? t('vault.entries.signInMethod.linkedEntryUnavailable')}</span><span className="block truncate text-meta text-[var(--cv-t3)]">{binding.account ?? t('vault.entries.signInMethod.accountNotSpecified')}</span></span>
+        </button> : null}
+        {candidates.map((candidate) => {
+          const value = `${candidate.vaultId}${LINK_SEPARATOR}${candidate.entryId}`
+          return <button key={value} type="button" disabled={disabled} aria-pressed={linkValue === value}
+            className={accountChoiceClasses} onClick={() => changeLink(value)}>
+            <img src={`/sign-in-providers/${binding.provider}.svg`} alt="" className={`h-6 w-6 shrink-0 object-contain ${binding.provider === 'apple' || binding.provider === 'github' ? 'brightness-0 dark:invert' : ''}`} />
+            <span className="min-w-0 flex-1 text-left">
+              <span className="block truncate font-medium">{candidate.label}</span>
+              <span className="block truncate text-meta text-[var(--cv-t3)]">{candidate.username}</span>
+            </span>
+            {linkValue === value ? <Icon name="check" size={16} /> : null}
+          </button>
+        })}
+        <button type="button" disabled={disabled} aria-pressed={!binding.entry}
+          className={accountChoiceClasses} onClick={() => changeLink('')}>
+          <Icon name="key" size={18} />
+          <span className="min-w-0 flex-1 text-left">{t('vault.entries.signInMethod.manualAccount')}</span>
+          {!binding.entry ? <Icon name="check" size={16} /> : null}
+        </button>
       </div>
-      {candidates.length > 0 || binding.entry ? (
-        <FormSelect
-          id="entry-sign-in-palladin-account"
-          label={t('vault.entries.signInMethod.palladinAccount')}
-          value={linkValue}
-          disabled={disabled}
-          onChange={(e) => changeLink(e.target.value)}
-        >
-          <option value="">{t('vault.entries.signInMethod.palladinAccountNone')}</option>
-          {binding.entry && !linkedIsCandidate ? (
-            <option value={linkValue} disabled>
-              {linkedLabel ?? t('vault.entries.signInMethod.linkedEntryUnavailable')}
-            </option>
-          ) : null}
-          {candidates.map((candidate) => (
-            <option
-              key={`${candidate.vaultId}${LINK_SEPARATOR}${candidate.entryId}`}
-              value={`${candidate.vaultId}${LINK_SEPARATOR}${candidate.entryId}`}
-            >
-              {candidate.username
-                ? t('vault.entries.signInMethod.palladinAccountOption', { label: candidate.label, username: candidate.username })
-                : candidate.label}
-            </option>
-          ))}
-        </FormSelect>
-      ) : null}
+      {!binding.entry ? <FormInput id="entry-sign-in-account" label={t('vault.entries.signInMethod.account')}
+        value={accountShown} onChange={(e) => changeAccount(e.target.value)}
+        placeholder={t('vault.entries.signInMethod.accountPlaceholder')} maxLength={SIGN_IN_ACCOUNT_MAX_LENGTH}
+        autoComplete="off" data-1p-ignore data-lpignore="true" disabled={disabled} /> : null}
 
     </div>
   )
 }
 
-function ProviderSelect({
+function ProviderChoices({
   id,
   value,
   onChange,
   disabled,
 }: {
   id: string
-  value: SignInProvider | ''
+  value: SignInProvider
   onChange: (provider: SignInProvider) => void
   disabled?: boolean
 }) {
   const { t } = useTranslation()
   return (
-    <FormSelect
-      id={id}
-      label={t('vault.entries.signInMethod.provider')}
-      value={value}
-      disabled={disabled}
-      onChange={(e) => {
-        const provider = SIGN_IN_PROVIDERS.find((candidate) => candidate === e.target.value)
-        if (provider) onChange(provider)
-      }}
-    >
-      {value === '' ? (
-        <option value="" disabled>{t('vault.entries.signInMethod.providerPlaceholder')}</option>
-      ) : null}
-      {SIGN_IN_PROVIDERS.map((provider) => (
-        <option key={provider} value={provider}>
-          {t(`vault.entries.signInMethod.providers.${provider}`)}
-        </option>
-      ))}
-    </FormSelect>
+    <div id={id} role="group" aria-label={t('vault.entries.signInMethod.provider')} className="grid grid-cols-3 gap-2">
+      {PROVIDER_DISPLAY_ORDER.map((provider) => <button key={provider} type="button" disabled={disabled}
+        aria-pressed={value === provider} onClick={() => { if (value !== provider) onChange(provider) }}
+        className={`${HOVERABLE_CARD_CLASSES} flex min-w-0 flex-col items-center gap-2 rounded-lg border border-[var(--cv-input-border)] p-3 text-action text-[var(--cv-t1)] aria-pressed:border-[var(--cv-t1)] focus-visible:outline-2 focus-visible:outline-[var(--cv-primary)] disabled:opacity-50`}>
+        <img src={`/sign-in-providers/${provider}.svg`} alt="" className={`h-6 w-6 object-contain ${provider === 'apple' || provider === 'github' ? 'brightness-0 dark:invert' : ''}`} />
+        {t(`vault.entries.signInMethod.providers.${provider}`)}
+      </button>)}
+    </div>
   )
 }
+
+const accountChoiceClasses = `${HOVERABLE_CARD_CLASSES} flex w-full min-w-0 items-center gap-3 rounded-lg border border-[var(--cv-input-border)] p-3 text-ui text-[var(--cv-t1)] aria-pressed:border-[var(--cv-t1)] focus-visible:outline-2 focus-visible:outline-[var(--cv-primary)] disabled:opacity-50`
