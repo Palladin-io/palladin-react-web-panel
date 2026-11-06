@@ -141,7 +141,9 @@ custom method IDs retain their existing hexadecimal case.
 `SignInMethodField` appears last after Notes in create and detail forms. Its
 empty state is the heading and `AddButton`; populated methods form a responsive
 compact provider-logo/name/account grid with individual edit buttons. The modal
-uses shared controls, `ModalShell` and `DialogFooter`. Account/provider changes
+uses provider-logo tiles, explicit local provider-account rows and a manual/unspecified
+option, with shared controls, `ModalShell` and `DialogFooter`. The safe initial
+Google provider never selects a linked account. Account/provider changes
 clear the linked Entry. Cancel drops the complete local draft, including the
 visibility switch. Save and remove affect only the selected field ID; neighboring
 methods, opaque fields and existing access remain unchanged. The generic custom
