@@ -202,6 +202,15 @@ function ProviderChoices({
 }) {
   const { t } = useTranslation()
   const rail = useRef<HTMLDivElement>(null)
+  useLayoutEffect(() => {
+    const viewport = rail.current
+    const selected = viewport?.querySelector<HTMLButtonElement>('[aria-pressed="true"]')
+    if (!viewport || !selected) return
+    const bounds = viewport.getBoundingClientRect()
+    const item = selected.getBoundingClientRect()
+    if (item.right > bounds.right) viewport.scrollLeft += item.right - bounds.right
+    else if (item.left < bounds.left) viewport.scrollLeft += item.left - bounds.left
+  }, [])
   const scroll = (direction: number) => rail.current?.scrollBy({ left: direction * rail.current.clientWidth * 0.75, behavior: window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' })
   return (
     <div className="min-w-0">
