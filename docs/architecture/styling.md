@@ -211,7 +211,14 @@ as its surrounding role; only the font family changes.
 
 ## Design reference
 
-An Astro prototype exists under `../design/` but is **outdated** and is **NOT a binding reference** — the product style has since changed significantly. Use it only as loose inspiration. When in doubt about visual design (spacing, shape, a new component's look), **ask the user** rather than copying the prototype. There is no "match the prototype 1:1" rule and no blocking-deviation list.
+The binding reference is the owner-accepted interactive mockup in the Palladin
+root's `design/workbench/`, backed by actual product React components and CSS.
+Follow the mandatory mockup-first workflow in `AGENTS.md`: update the affected
+flow before product integration and verify pixel-for-pixel fidelity afterwards.
+Legacy HTML/Astro prototypes are historical, not design inspiration. If a component
+is missing or the intended appearance is unclear, ask the owner before designing
+an alternative. The current accepted component catalog and CSS tokens remain the
+baseline for reusable controls.
 
 ## Authenticated panel — No. 2
 
