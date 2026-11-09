@@ -11,7 +11,8 @@ require a mockup. Do not restart the design from scratch for each feature.
 
 1. **Recover the current baseline.** Read the Palladin root's
    `.agents/skills/palladin-design/SKILL.md`, `design/workbench/README.md`,
-   `COMPONENTS.md` and `sources.json`, plus the relevant product component docs.
+   `design/workbench/COMPONENTS.md` and `design/workbench/sources.json`,
+   then the product catalog and concern-specific documents listed there.
    Compare pinned sources with the affected repository's latest `main`; refresh
    stale sources/dependencies before designing, preserving accepted in-progress
    mockups. Never edit generated `.sources/` files. In a standalone checkout,
@@ -228,10 +229,14 @@ Quick rule: never inline-style a raw `<input>`/`<textarea>` — use `FormInput`,
 
 ### Shared controls inventory
 
-Every-iteration reuse reference. Reach for the shared component before writing markup. Full props and proposed APIs in `docs/architecture/component-catalog.md`.
+Every-iteration reuse reference. Reach for the shared component before writing markup. Implemented props and separately labelled extraction candidates in `docs/architecture/component-catalog.md`.
 
 | Control | Component | When to use |
 |---------|-----------|-------------|
+| Status / metadata chip | `MetadataBadge` | Neutral outlined chip; semantic text colour only |
+| Destructive section | `DangerZone` | Neutral card with red outline and inline title |
+| Search | `SearchBar` | Shared list/global search |
+| Toggle | `ToggleSwitch` | Boolean settings |
 | Text / URL / email input | `FormInput` | Any labelled single-line field |
 | Password input | `SecretInput` | Secrets with show/hide; masks via `.secret-mask`, never `type=password` |
 | Textarea | `FormTextarea` | Multi-line; `monospace` for code/keys |
@@ -242,8 +247,8 @@ Every-iteration reuse reference. Reach for the shared component before writing m
 | Detail tabs | `DetailTabBar` | Canonical pinned detail tabs; reuse its leading/actions slots |
 | Card / list-row hover | `HOVERABLE_CARD_CLASSES` | Any interactive card/row; never inline hover classes |
 | Internal scroll section | `ScrollArea` | Any scrollable list/content region under pinned chrome; see Scroll Model |
-| Skeleton / loader | **missing** → `SkeletonBlock` | Loading placeholders; 22 inline copies — extract |
-| Empty state | **missing** → `EmptyState` | "No items" dashed box; 13 inline copies — extract |
+| Skeleton / loader | `SkeletonBlock` | Existing loading placeholder; reuse |
+| Empty state | `EmptyState` | Existing empty-state component; reuse |
 | Responsive master/detail | `ResponsiveMasterDetail` | Wide list + detail columns with narrow route-driven drill-in |
 | Tooltip | `Tooltip` | Truncated text; 150ms delay, only when actually clipped |
 | Icon | `Icon` | Bundled Lucide SVG through the central legacy-name map; never load remote icon fonts or render ligature spans |
@@ -256,7 +261,7 @@ Every-iteration reuse reference. Reach for the shared component before writing m
 | Password strength | `PasswordStrengthBar` | Master-password fields |
 | Auth CTA / wordmark | `AuthSubmitButton` / `AppWordmark` | Auth surfaces only |
 
-Items marked **missing** are duplicated 2+ times with no shared component — extract on next touch rather than adding another copy.
+The catalog distinguishes implemented controls from proposed extractions. Never create a second implementation of a listed control; ask before designing a missing pattern.
 
 ### Styling
 - Tailwind utility classes directly on elements; extract repeated patterns into components, not CSS classes.
@@ -329,12 +334,10 @@ fe:{module}:{event}
 
 Frontend tracks **UI-only** events — page views, wizard interactions, clicks. Business logic events are tracked by backend.
 
-**`analytics.capture(module, event, properties?)` automatically prefixes `fe:`.** Never include the prefix in the call — `capture('unlock', 'page-viewed')` sends `fe:unlock:page-viewed` to PostHog.
+**`analytics.capture(module, event, properties?)` automatically prefixes `fe:`.** Never include the prefix in the call — `capture('vault', 'create-wizard-opened')` sends `fe:vault:create-wizard-opened` to PostHog. Generic navigation owns page views; do not add feature-specific `*-viewed` events.
 
 Examples:
 ```
-fe:auth:login-page-viewed
-fe:dashboard:viewed
 fe:vault:create-wizard-opened
 fe:vault:import-wizard-completed
 fe:billing:upgrade-prompt-shown
