@@ -2,6 +2,54 @@
 
 React SPA for managing vaults, entries, agents, and grants. Zero-knowledge architecture — all encryption/decryption happens client-side.
 
+## Mandatory UI workflow: mockup first, pixel-perfect implementation
+
+For every new or changed user-facing screen, component or interaction, update the
+interactive mockup **before integrating the feature into the application**. This
+includes small UI changes; backend-only changes with no visible effect do not
+require a mockup. Do not restart the design from scratch for each feature.
+
+1. **Recover the current baseline.** Read the Palladin root's
+   `.agents/skills/palladin-design/SKILL.md`, `design/workbench/README.md`,
+   `design/workbench/COMPONENTS.md` and `design/workbench/sources.json`,
+   then the product catalog and concern-specific documents listed there.
+   Compare pinned sources with the affected repository's latest `main`; refresh
+   stale sources/dependencies before designing, preserving accepted in-progress
+   mockups. Never edit generated `.sources/` files. In a standalone checkout,
+   locate the root/workbench through existing worktrees; if unavailable, ask for
+   its location instead of inventing a replacement.
+2. **Update the interactive mockup first.** Reuse actual product React components,
+   layouts, CSS tokens and local assets. Mock only data, API/crypto and browser
+   side effects with fictional, memory-only fixtures. Make the affected flow
+   clickable, including navigation, submit/cancel and relevant loading, empty,
+   error and disabled states. Do not connect previews to staging or production.
+3. **Reuse the accepted style.** Use existing buttons, tabs, selection treatments,
+   chips, zones, inputs, icons, spacing and grain. Do not copy shell JSX, create
+   parallel look-alike controls, invent colors or use generic `frontend-design`,
+   retired HTML/Astro prototypes or old design skills as a new visual baseline.
+   If a required component/pattern is missing or its design is unclear, **ask the
+   owner with a concrete proposal before inventing it**. Once agreed, implement
+   one reusable component for both preview and product, not two copies.
+4. **Agree the concrete result.** Show a runnable preview/link and record the
+   accepted revision and states in the existing task plan. Obtain acceptance of
+   new visual/interaction decisions before product integration. Existing explicit
+   acceptance of that exact mockup remains valid; do not ask again or reopen it.
+5. **Implement pixel for pixel.** The accepted mockup is the binding visual and
+   interaction specification. Preserve component composition, geometry, typography,
+   icons, colors, borders, spacing, grain and responsive behavior while replacing
+   fixture boundaries with production logic. Any intended deviation requires
+   updating the mockup and agreement first. Never weaken security to match a demo.
+6. **Verify before handoff.** Compare mockup and implementation screenshots at the
+   same viewport, theme, locale and equivalent synthetic data/state; fix visual
+   differences, and exercise the actual flow. Check light/dark, long labels and
+   scrolling, web at 1520px and narrow widths, or extension popup and side-panel
+   sizes as applicable. Passing build/unit tests alone is not pixel-perfect
+   evidence. Include the mockup revision/link and visual/interaction results in
+   the PR; retain the fixture flow as the baseline for subsequent work.
+
+Web references: `docs/architecture/component-catalog.md`,
+`docs/architecture/styling.md` and the affected feature doc.
+
 ## Architecture Reference Docs
 
 **Reuse-first rule:** before building any control, check the catalog. If a shared component covers the case, use it. If a pattern appears **2+ times**, extract it into `src/shared/components/` instead of copy-pasting markup.
@@ -162,7 +210,7 @@ The backend is authoritative for server-owned domain state and business invarian
 ### View Layout (new views)
 
 - New views are **left-aligned** with the standard `panel-content` container (padding `px-4 py-4`), consistent with Agents/Vaults. **Never center** view content (`mx-auto` / `justify-center` at the page level is forbidden).
-- **Prefer split-view** for views with a list + related context: main list on the left (`w-[clamp(...)] shrink-0 border-r`), related panel on the right (`flex-1`). On narrow screens the columns stack vertically (list first). This split-view layout is duplicated across 7 pages and is a candidate for a shared `SplitView` component — see `docs/architecture/component-catalog.md`.
+- **Prefer split-view** for views with a list + related context: main list on the left (`w-[clamp(...)] shrink-0 border-r`), related panel on the right (`flex-1`). Reuse `ResponsiveMasterDetail` with route-driven drill-in on narrow screens — see `docs/architecture/component-catalog.md`.
 - Patterns to copy (don't invent a new one): Grant Management (list + detail), Approvals (pending left + audit log right), Agents/Vaults. Keep the existing pattern from `agents-page.tsx` / `grants-page.tsx`.
 
 ### Shared Interactive Styles
@@ -181,10 +229,14 @@ Quick rule: never inline-style a raw `<input>`/`<textarea>` — use `FormInput`,
 
 ### Shared controls inventory
 
-Every-iteration reuse reference. Reach for the shared component before writing markup. Full props and proposed APIs in `docs/architecture/component-catalog.md`.
+Every-iteration reuse reference. Reach for the shared component before writing markup. Implemented props and separately labelled extraction candidates in `docs/architecture/component-catalog.md`.
 
 | Control | Component | When to use |
 |---------|-----------|-------------|
+| Status / metadata chip | `MetadataBadge` | Neutral outlined chip; semantic text colour only |
+| Destructive section | `DangerZone` | Neutral card with red outline and inline title |
+| Search | `SearchBar` | Shared list/global search |
+| Toggle | `ToggleSwitch` | Boolean settings |
 | Text / URL / email input | `FormInput` | Any labelled single-line field |
 | Password input | `SecretInput` | Secrets with show/hide; masks via `.secret-mask`, never `type=password` |
 | Textarea | `FormTextarea` | Multi-line; `monospace` for code/keys |
@@ -192,11 +244,11 @@ Every-iteration reuse reference. Reach for the shared component before writing m
 | Button | `Button` | All buttons; always `size="sm"` |
 | Add / create action | `AddButton` | Opens add/create/generate/invite flows: icon-only plus with translated `label`; submit/confirm buttons retain text |
 | Modal | `ModalShell` + `DialogFooter` | Any dialog; see `dialogs.md` |
-| Detail tabs | `VaultDetailTabs` (canonical); **extract** `DetailTabBar` | Detail-view tab strips; 4 divergent copies exist |
+| Detail tabs | `DetailTabBar` | Canonical pinned detail tabs; reuse its leading/actions slots |
 | Card / list-row hover | `HOVERABLE_CARD_CLASSES` | Any interactive card/row; never inline hover classes |
 | Internal scroll section | `ScrollArea` | Any scrollable list/content region under pinned chrome; see Scroll Model |
-| Skeleton / loader | **missing** → `SkeletonBlock` | Loading placeholders; 22 inline copies — extract |
-| Empty state | **missing** → `EmptyState` | "No items" dashed box; 13 inline copies — extract |
+| Skeleton / loader | `SkeletonBlock` | Existing loading placeholder; reuse |
+| Empty state | `EmptyState` | Existing empty-state component; reuse |
 | Responsive master/detail | `ResponsiveMasterDetail` | Wide list + detail columns with narrow route-driven drill-in |
 | Tooltip | `Tooltip` | Truncated text; 150ms delay, only when actually clipped |
 | Icon | `Icon` | Bundled Lucide SVG through the central legacy-name map; never load remote icon fonts or render ligature spans |
@@ -209,7 +261,7 @@ Every-iteration reuse reference. Reach for the shared component before writing m
 | Password strength | `PasswordStrengthBar` | Master-password fields |
 | Auth CTA / wordmark | `AuthSubmitButton` / `AppWordmark` | Auth surfaces only |
 
-Items marked **missing** are duplicated 2+ times with no shared component — extract on next touch rather than adding another copy.
+The catalog distinguishes implemented controls from proposed extractions. Never create a second implementation of a listed control; ask before designing a missing pattern.
 
 ### Styling
 - Tailwind utility classes directly on elements; extract repeated patterns into components, not CSS classes.
@@ -282,12 +334,10 @@ fe:{module}:{event}
 
 Frontend tracks **UI-only** events — page views, wizard interactions, clicks. Business logic events are tracked by backend.
 
-**`analytics.capture(module, event, properties?)` automatically prefixes `fe:`.** Never include the prefix in the call — `capture('unlock', 'page-viewed')` sends `fe:unlock:page-viewed` to PostHog.
+**`analytics.capture(module, event, properties?)` automatically prefixes `fe:`.** Never include the prefix in the call — `capture('vault', 'create-wizard-opened')` sends `fe:vault:create-wizard-opened` to PostHog. Generic navigation owns page views; do not add feature-specific `*-viewed` events.
 
 Examples:
 ```
-fe:auth:login-page-viewed
-fe:dashboard:viewed
 fe:vault:create-wizard-opened
 fe:vault:import-wizard-completed
 fe:billing:upgrade-prompt-shown
