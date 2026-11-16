@@ -19,6 +19,19 @@ const settle = async () => { for (let i = 0; i < 12; i++) await Promise.resolve(
 beforeEach(() => vi.useFakeTimers())
 afterEach(() => { vi.clearAllTimers(); vi.useRealTimers() })
 describe('Web browser-authenticated channel', () => {
+  it('binds v2 sequence metadata to the negotiated protocol and rejects a v1 frame', async () => {
+    const f = fixture(), protocol = 'palladin.shared-unlock.browser.v2' as const;
+    const c = connectSharedUnlockBrowser({ ...f.options, protocol }); await settle(); f.port.onMessage.emit({ ...f.frame, protocol });
+    const route = await c.ready, received = vi.fn(); route.onOperation(received);
+    const payload = { kind: 'state', stateId: 'A'.repeat(43), generation: 'A'.repeat(43),
+      accountId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', status: 'unlocked',
+      source: { organizationId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', sequence: 262 } };
+    const frame = { type: 'operation', protocol, apiUrl: f.frame.apiUrl, webNonce: f.frame.webNonce,
+      channelId: route.channelId, documentBinding: route.documentBinding, attemptId: payload.stateId, payload };
+    f.port.onMessage.emit(frame); expect(received).toHaveBeenCalledOnce();
+    f.port.onMessage.emit({ ...frame, protocol: f.frame.protocol });
+    expect(route.signal.aborted).toBe(true); expect(received).toHaveBeenCalledOnce();
+  });
   it('sends and receives operations bound to the established document, then unsubscribes', async () => {
     const f = fixture(), c = connectSharedUnlockBrowser(f.options); await settle(); f.port.onMessage.emit(f.frame);
     const route = await c.ready, received = vi.fn(), unsubscribe = route.onOperation(received);

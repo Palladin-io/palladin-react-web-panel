@@ -4,10 +4,10 @@ import { randomBytes, wipe } from '../../../shared/crypto/sodium'
 import { encodeBase64Url } from '../../../shared/crypto/vault-v2-bytes'
 import { isSharedUnlockExtensionId } from '../../../shared/lib/shared-unlock-extension-id'
 
-const protocol = 'palladin.shared-unlock.browser.v1'
+type BrowserProtocol = 'palladin.shared-unlock.browser.v1' | 'palladin.shared-unlock.browser.v2'
 const nonceSchema = z.string().regex(/^[A-Za-z0-9_-]{42}[AEIMQUYcgkosw048]$/)
 const readySchema = z.object({
-  type: z.literal('ready'), protocol: z.literal(protocol), apiUrl: z.string().min(1).max(2048),
+  type: z.literal('ready'), protocol: z.enum(['palladin.shared-unlock.browser.v1', 'palladin.shared-unlock.browser.v2']), apiUrl: z.string().min(1).max(2048),
   webOrigin: z.string().min(1).max(2048), extensionId: z.string().refine(isSharedUnlockExtensionId),
   webNonce: nonceSchema, channelId: nonceSchema, documentBinding: z.string().min(1).max(256),
 }).strict()
@@ -17,7 +17,7 @@ export interface SharedUnlockNativePort {
   /** Firefox's own-frame adapter additionally rechecks canonical browser resources. */
   assertCurrent?(): void
   verifyCurrent?(): Promise<void>
-  postMessage(message: { type: 'hello'; protocol: typeof protocol; apiUrl: string; webNonce: string } | SharedUnlockOperationFrame): void
+  postMessage(message: { type: 'hello'; protocol: BrowserProtocol; apiUrl: string; webNonce: string } | SharedUnlockOperationFrame): void
   disconnect(): void
   onMessage: { addListener(listener: (message: unknown) => void): void; removeListener(listener: (message: unknown) => void): void }
   onDisconnect: { addListener(listener: () => void): void; removeListener(listener: () => void): void }
@@ -27,6 +27,7 @@ export interface SharedUnlockNativeRuntime {
   readonly lastError?: unknown
 }
 export interface SharedUnlockBrowserRoute {
+  readonly authoritySync?: boolean
   readonly apiUrl: string
   readonly webOrigin: string
   readonly extensionId: string
@@ -40,6 +41,7 @@ export interface SharedUnlockBrowserRoute {
   onOperation(listener: (message: SharedUnlockOperationMessage) => void): () => void
 }
 interface BrowserChannelOptions {
+  readonly protocol?: BrowserProtocol
   readonly runtime: SharedUnlockNativeRuntime
   readonly extensionId: string
   readonly apiUrl: string
@@ -51,6 +53,7 @@ interface BrowserChannelOptions {
 /** Calls the browser with an independently configured exact ID. A payload ID is never authority.
  * Operation frames remain bound to the established channel and document. */
 export function connectSharedUnlockBrowser(options: BrowserChannelOptions) {
+  const protocol = options.protocol ?? 'palladin.shared-unlock.browser.v1'
   const { runtime, extensionId, apiUrl, webOrigin } = options
   const abort = new AbortController()
   let port: SharedUnlockNativePort | null = null
@@ -88,7 +91,7 @@ export function connectSharedUnlockBrowser(options: BrowserChannelOptions) {
       assertCurrent()
       if (settled) {
         const frame = sharedUnlockOperationFrameSchema.safeParse(raw)
-        if (!frame.success || !routeBinding || frame.data.apiUrl !== apiUrl || frame.data.webNonce !== requestNonce
+        if (!frame.success || frame.data.protocol !== protocol || !routeBinding || frame.data.apiUrl !== apiUrl || frame.data.webNonce !== requestNonce
           || frame.data.channelId !== routeBinding.channelId || frame.data.documentBinding !== routeBinding.documentBinding
           || !operationListeners.size) { close(); return }
         for (const listener of [...operationListeners]) {
@@ -101,13 +104,13 @@ export function connectSharedUnlockBrowser(options: BrowserChannelOptions) {
       const received = parsed.data
       // The browser-selected Port establishes recipient identity. These comparisons
       // additionally fence correlation/environment; they cannot authenticate a fake Port.
-      if (received.extensionId !== extensionId || received.apiUrl !== apiUrl || received.webOrigin !== webOrigin
+      if (received.protocol !== protocol || received.extensionId !== extensionId || received.apiUrl !== apiUrl || received.webOrigin !== webOrigin
         || received.webNonce !== requestNonce || !received.documentBinding.endsWith('/' + received.channelId)) { close(); return }
       assertCurrent()
       settled = true
       clearTimeout(timeout)
       routeBinding = { channelId: received.channelId, documentBinding: received.documentBinding }
-      resolveReady(Object.freeze({ apiUrl, webOrigin, extensionId, channelId: received.channelId,
+      resolveReady(Object.freeze({ authoritySync: protocol === 'palladin.shared-unlock.browser.v2', apiUrl, webOrigin, extensionId, channelId: received.channelId,
         documentBinding: received.documentBinding, signal: abort.signal, assertCurrent, close,
         verifyCurrent: async () => {
           try { assertCurrent(); await port?.verifyCurrent?.(); assertCurrent() }

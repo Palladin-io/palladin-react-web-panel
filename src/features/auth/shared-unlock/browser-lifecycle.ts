@@ -2,6 +2,7 @@ import type { SharedUnlockBrowserStatus } from './browser-status'
 import { connectSharedUnlockBrowser, type SharedUnlockBrowserRoute, type SharedUnlockNativeRuntime } from './browser-channel'
 
 interface LifecycleOptions {
+  readonly authoritySync?: boolean
   readonly extensionId: string
   readonly apiUrl: string
   readonly window: Window
@@ -22,11 +23,16 @@ export function startSharedUnlockBrowserLifecycle(options: LifecycleOptions) {
   let hiddenDocument = false
   let retry: ReturnType<typeof setTimeout> | null = null
   let failures = 0
+  let legacy = false
+  let reprobed = false
+  let protocolRetry: ReturnType<typeof setTimeout> | null = null
   let connection: ReturnType<typeof connectSharedUnlockBrowser> | null = null
   let route: SharedUnlockBrowserRoute | null = null
   const clearRetry = () => { if (retry !== null) clearTimeout(retry); retry = null }
   const retire = () => {
     clearRetry()
+    if (protocolRetry !== null) clearTimeout(protocolRetry)
+    protocolRetry = null
     const old = connection
     connection = null
     route = null
@@ -47,7 +53,9 @@ export function startSharedUnlockBrowserLifecycle(options: LifecycleOptions) {
     options.onStatus?.('connecting')
     const runtime = options.runtime()
     if (!runtime) { options.onStatus?.('unavailable'); reconnect(); return }
-    const pending = connectSharedUnlockBrowser({ runtime, extensionId, apiUrl, webOrigin, assertDocument })
+    const useV2 = options.authoritySync && !legacy
+    const pending = connectSharedUnlockBrowser({ runtime, extensionId, apiUrl, webOrigin, assertDocument,
+      protocol: useV2 ? 'palladin.shared-unlock.browser.v2' : 'palladin.shared-unlock.browser.v1' })
     connection = pending
     pending.signal.addEventListener('abort', () => {
       if (connection !== pending) return
@@ -56,14 +64,28 @@ export function startSharedUnlockBrowserLifecycle(options: LifecycleOptions) {
       options.onStatus?.('unavailable')
       reconnect()
     }, { once: true })
+    let established = false
     void pending.ready.then(ready => {
+      established = true
+      // Re-probe v2 on the next connection after a successful legacy session.
+      legacy = false
       if (connection !== pending) { pending.close(); return }
       ready.assertCurrent()
       route = ready
       options.onReady?.(ready)
       options.onStatus?.('connected')
       failures = 0
+      if (!useV2 && options.authoritySync && !reprobed) {
+        reprobed = true
+        protocolRetry = setTimeout(() => {
+          protocolRetry = null
+          if (connection !== pending || !activeDocument()) return
+          retire(); connect()
+        }, 30_000)
+      }
     }).catch(() => {
+      // Downgrade only a failed handshake, never a failed live operation.
+      if (!established && useV2 && activeDocument()) legacy = true
       if (connection === pending) options.onStatus?.('unavailable')
       pending.close()
       if (connection === pending) { connection = null; route = null; reconnect() }

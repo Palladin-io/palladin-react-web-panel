@@ -62,3 +62,19 @@ visibility alone does not retire a valid own session. Pagehide/BFCache,
 prerendering, changed origin and teardown still prevent connection and retire the
 old route. Reconnecting neither counts as user activity nor renews an unlock
 limit. The ordinary Identity/crypto/expiry gates still authorize every handoff.
+
+### Chromium authority convergence
+
+The Chromium channel negotiates browser transport v2, falling back to v1 only when
+its handshake cannot be established. v2 advertises a source authorization sequence
+for scheduling. A fresh manually unlocked Web session may supply its newer root to
+an already-unlocked same-account Extension. The extension independently verifies
+the committed sequence and identical keys, preserves its own idle/activity limits,
+and adopts its own receiver session. Equal/older roots do not initiate replacement.
+This prevents an unlocked Extension retaining a retired root after a newer Web
+manual unlock. Existing expiry floors remain enforced when a new Web document opens.
+
+Already-unlocked Web sessions are not replacement recipients; browser cookie
+commit/discard semantics are unchanged. Firefox/Safari and mixed legacy versions
+retain v1 locked-receiver behavior. A document that selected v1 needs a reload to
+negotiate v2 after an extension update. The encrypted handoff protocol remains v1.
