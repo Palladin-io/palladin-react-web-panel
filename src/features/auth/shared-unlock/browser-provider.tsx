@@ -31,7 +31,7 @@ export function SharedUnlockBrowserProvider() {
       },
       // pagehide can enter BFCache without destroying JS memory. Retire only this
       // document's keys/access token; peer loss never calls this action.
-      retireDocument: () => useAuthStore.getState().expireSession('pagehide'),
+      retireDocument: () => useAuthStore.getState().expireSession(),
     })
     return () => lifecycle.close()
   }, [])

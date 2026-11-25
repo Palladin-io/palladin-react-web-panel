@@ -9,8 +9,10 @@ import { adoptSharedUnlockSource, getSharedUnlockSourceSnapshot, prepareManualSh
 import type { AccountResponse } from '../../../shared/api/account-api'
 import fixtures from './fixtures/browser-session-api'
 import { sharedUnlockLinks } from './link-runtime'
+import { revalidateBrowserSession } from '../session/browser-session'
 import { env } from '../../../shared/lib/env'
 
+vi.mock('../session/browser-session', async original => ({ ...await original<typeof import('../session/browser-session')>(), revalidateBrowserSession: vi.fn(async () => {}) }))
 vi.mock('../../../shared/lib/env', () => ({ env: { apiUrl: 'https://api.example.test', sharedUnlockExtensionId: '' } }))
 const apiUrl = 'https://api.example.test', root = fixtures.operations[0].sourceAuthorization
 const scope = { apiUrl, accountId: root.accountId }
@@ -294,4 +296,47 @@ it.each(['source', 'receiver'] as const)('keeps the established Web link when a 
     expect(useAuthStore.getState()).toMatchObject({ accessToken: null, masterKey: null, isVaultLocked: true })
     expect(fetcher).not.toHaveBeenCalled()
   }
+})
+
+it.each([[-1, 1], [3600, 0]] as const)('refreshes own session on a rejected source preparation only when its token expired (%s s)', async (offset, refreshes) => {
+  vi.mocked(revalidateBrowserSession).mockClear()
+  const accessToken = `h.${btoa(JSON.stringify({ exp: Math.floor(now / 1000) + offset }))}.s`
+  useAuthStore.setState({ accessToken })
+  useAuthStore.getState().unlockVault(new Uint8Array(32).fill(3), new Uint8Array(32).fill(4), root)
+  const generation = useAuthStore.getState().cryptoSessionGeneration
+  adoptSharedUnlockSource(root, 'A'.repeat(43), { sharedUnlockEnabled: true, revision: 1 }, () => {
+    if (useAuthStore.getState().cryptoSessionGeneration !== generation) throw new Error('changed')
+  })
+  const fetcher = vi.fn<typeof fetch>(async () => new Response('{}', { status: 401 }))
+  vi.stubGlobal('fetch', fetcher)
+  const f = start(), peerId = 'C'.repeat(42) + 'A'
+  const web = () => f.sent.filter(message => message.payload?.kind === 'state').at(-1)?.payload
+  await vi.waitFor(() => expect(web()).toMatchObject({ source: { organizationId: root.organizationId } }))
+  const state = web(); if (state?.kind !== 'state') throw new Error('missing state')
+  f.emit({ attemptId: peerId, payload: { kind: 'state', stateId: peerId, accountId: root.accountId, status: 'locked', generation: 'D'.repeat(42) + 'A', source: null } })
+  await new Promise(resolve => setTimeout(resolve, 0))
+  const before = fetcher.mock.calls.length
+  f.emit({ attemptId: peerId, payload: { kind: 'link', accountId: root.accountId, linkId: '22222222-2222-4222-8222-222222222222', webStateId: state.stateId, extensionStateId: peerId } })
+  await vi.waitFor(() => expect(fetcher.mock.calls.length).toBeGreaterThan(before))
+  await new Promise(resolve => setTimeout(resolve, 20))
+  expect(revalidateBrowserSession).toHaveBeenCalledTimes(refreshes)
+  expect(useAuthStore.getState().isVaultLocked).toBe(false)
+})
+
+it('advertises a fresh source state only after own session revalidation settles', async () => {
+  useAuthStore.getState().unlockVault(new Uint8Array(32).fill(3), new Uint8Array(32).fill(4), root)
+  const generation = useAuthStore.getState().cryptoSessionGeneration
+  adoptSharedUnlockSource(root, 'A'.repeat(43), { sharedUnlockEnabled: true, revision: 1 }, () => {
+    if (useAuthStore.getState().cryptoSessionGeneration !== generation) throw new Error('changed')
+  })
+  vi.stubGlobal('fetch', vi.fn<typeof fetch>(async () => new Response(JSON.stringify({ sharedUnlockEnabled: true, revision: 1 }))))
+  const f = start()
+  const states = () => f.sent.flatMap(message => message.payload?.kind === 'state' ? [message.payload] : [])
+  await vi.waitFor(() => expect(states().at(-1)).toMatchObject({ source: { organizationId: root.organizationId } }))
+  const first = states().at(-1)!
+  useAuthStore.setState({ sessionRevalidating: true })
+  await vi.waitFor(() => expect(states().at(-1)).toMatchObject({ status: 'unlocked', source: null }))
+  useAuthStore.setState({ sessionRevalidating: false, accessToken: 'rotated-access' })
+  await vi.waitFor(() => expect(states().at(-1)).toMatchObject({ source: { organizationId: root.organizationId } }))
+  expect(states().at(-1)!.stateId).not.toBe(first.stateId)
 })
