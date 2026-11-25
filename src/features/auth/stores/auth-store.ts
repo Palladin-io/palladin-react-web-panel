@@ -69,7 +69,7 @@ interface AuthState {
   ) => void
   lockVault: () => void
   /** Session timeout: wipes crypto keys AND the access token, so a walked-away tab holds neither. */
-  expireSession: (reason?: 'pagehide') => void
+  expireSession: () => void
   logout: () => void
 }
 
@@ -207,9 +207,8 @@ export const useAuthStore = create<AuthState>()(
             cryptoSessionGeneration: state.cryptoSessionGeneration + 1 }
         }),
 
-      expireSession: (reason) =>
+      expireSession: () =>
         set((state) => {
-          if (reason !== 'pagehide' && state.masterKey && state.userId) sharedUnlockExpiry.retire({ accountId: state.userId, apiUrl: env.apiUrl })
           if (state.masterKey) wipe(state.masterKey)
           if (state.privateKey) wipe(state.privateKey)
           return { masterKey: null, privateKey: null, unlockLimits: null, isVaultLocked: true, accessToken: null,

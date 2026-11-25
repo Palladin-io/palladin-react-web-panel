@@ -1,9 +1,10 @@
 import type { SharedUnlockContext } from '@palladin/crypto'
+import { SharedUnlockAuthorizationRetiredError } from './expiry-store'
 import { createSharedUnlockReceiverCrypto } from '../../../shared/crypto/shared-unlock-receiver'
 import { wipe } from '../../../shared/crypto/sodium'
 import type { SharedUnlockKeys } from '../../../shared/crypto/shared-unlock-keys'
 import { env } from '../../../shared/lib/env'
-import { sessionDeadline, unlockLimits } from '../lib/session-limits'
+import { ABSOLUTE_TIMEOUT_MS, sessionDeadline, unlockLimits } from '../lib/session-limits'
 import { captureClientSessionGeneration, clientSessionGenerationMatches } from '../session/client-session'
 import { captureManualUnlockFence } from '../session/manual-unlock-attempt'
 import { useAuthStore } from '../stores/auth-store'
@@ -158,6 +159,9 @@ export async function beginSharedUnlockReceiver(route: SharedUnlockReceiverRoute
         assertCurrent()
         await receiver.verifyCommit(commit.context)
         assertBinding(commit.context)
+        // Web's own absolute ceiling is terminal for this root. A generic failure
+        // would reconnect the channel and repeat the same denied handoff.
+        if (Date.now() >= commit.context.unlockedAtMs + ABSOLUTE_TIMEOUT_MS) throw new SharedUnlockAuthorizationRetiredError()
         const effective = unlockLimits(Date.now(), commit.context)
         const persistedDeadline = await wait(route.assertFreshAuthorization?.(commit.authorizationSequence, sessionDeadline(effective), Math.min(effective.absoluteDeadlineMs, effective.offlineDeadlineMs)) ?? Promise.resolve())
         const installedLimits = { ...effective, idleDeadlineMs: Math.min(effective.idleDeadlineMs, persistedDeadline ?? Infinity) }

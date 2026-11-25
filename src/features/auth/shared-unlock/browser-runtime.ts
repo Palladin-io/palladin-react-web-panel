@@ -10,6 +10,8 @@ import { encodeBase64Url } from '../../../shared/crypto/vault-v2-bytes'
 import { env } from '../../../shared/lib/env'
 import { sessionDeadline } from '../lib/session-limits'
 import { useAuthStore } from '../stores/auth-store'
+import { revalidateBrowserSession } from '../session/browser-session'
+import { parseJwtPayload } from '../../../shared/lib/jwt'
 import { clearClientSession } from '../session/client-session'
 import { startSharedUnlockLinkMonitor } from './link-monitor'
 import { SharedUnlockApi, SharedUnlockApiError } from './api'
@@ -109,7 +111,14 @@ export function coordinateSharedUnlockBrowser(route: SharedUnlockBrowserRoute) {
           || authority.authorization?.authorizationId !== root.authorizationId || authority.sourceGeneration !== generation) throw new Error('Shared unlock source changed')
       }
       check(); await wait(route.verifyCurrent()); check()
-      const preference = await wait(api.readPreference(session, signal)); check()
+      const preference = await wait(api.readPreference(session, signal)).catch((error: unknown) => {
+        // Rotation republishes own state and starts a fresh attempt. A token that
+        // is not expired gets no refresh, so a persistent 401 cannot loop.
+        const expiresAt = parseJwtPayload(session.accessToken).exp
+        if (error instanceof SharedUnlockApiError && error.code === 'unauthorized'
+          && typeof expiresAt === 'number' && Date.now() >= expiresAt * 1000) void revalidateBrowserSession()
+        throw error
+      }); check()
       acceptSharedUnlockPreference(preference, generation)
       if (!preference.sharedUnlockEnabled) throw new Error('Shared unlock is disabled')
       const marker = await wait(admissible(accountId, linkId)); check()

@@ -36,10 +36,10 @@ describe('HTTP shared-unlock storage transactions', () => {
     expect(f.storage.set).toHaveBeenCalledOnce()
   })
 
-  it('publishes under all three scopes while retaining the earliest verified deadline', async () => {
+  it('publishes under all three scopes while retaining the earliest verified hard ceiling', async () => {
     const f = fixture()
     await f.own.links.adopt(scope, linkId)
-    await f.peer.expiry.checkpoint(scope, 5, 200, 900)
+    await f.peer.expiry.checkpoint(scope, 5, 200, 200)
     const publish = vi.fn()
     await f.publish(publish)
     expect(publish).toHaveBeenCalledExactlyOnceWith(200)

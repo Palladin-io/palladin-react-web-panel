@@ -36,10 +36,10 @@ function fixture() {
 }
 
 describe('origin-wide receiver publication locks', () => {
-  it('holds all three locks through synchronous publication and preserves an earlier idle ceiling', async () => {
+  it('holds all three locks through synchronous publication and preserves an earlier hard ceiling', async () => {
     const f = fixture()
     await f.own.links.adopt(scope, linkId)
-    await f.peer.expiry.checkpoint(scope, 5, 200, 900)
+    await f.peer.expiry.checkpoint(scope, 5, 200, 200)
     const published = vi.fn((deadline: number) => {
       expect([...f.held]).toEqual(['pause', 'links', 'expiry'])
       expect(deadline).toBe(200)

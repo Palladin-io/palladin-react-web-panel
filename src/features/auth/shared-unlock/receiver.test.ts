@@ -2,7 +2,7 @@ import { SharedUnlockPreferenceGate } from './preference-gate'
 import { SharedUnlockReconnectStaging } from './reconnect-staging'
 import { SharedUnlockLinkStore } from './link-store'
 import type { SharedUnlockCoordinatorRoute } from './browser-coordinator'
-import { SharedUnlockExpiryStore } from './expiry-store';
+import { SharedUnlockAuthorizationRetiredError, SharedUnlockExpiryStore } from './expiry-store';
 import type { SharedUnlockInstalled } from "./receiver";
 import { receiveSharedUnlockBrowserTransfer, type SharedUnlockOperationTransport } from "./browser-transfer";
 import { sharedUnlockOperationSchema, type SharedUnlockOperationMessage } from "./browser-operation-message";
@@ -41,11 +41,11 @@ beforeEach(() => {
 afterEach(() => { for (const cancel of cancels.splice(0)) cancel(); useAuthStore.getState().logout(); vi.restoreAllMocks() })
 const deferred = <T>() => { let resolve!: (value: T) => void; const promise = new Promise<T>(r => { resolve = r }); return { promise, resolve } }
 
-async function setup(options: { publishWithLocalGuards?: SharedUnlockReceiverRoute["publishWithLocalGuards"]; confirmLocalLink?: SharedUnlockReceiverRoute["confirmLocalLink"]; assertFreshAuthorization?: SharedUnlockReceiverRoute["assertFreshAuthorization"]; onInstalled?: SharedUnlockInstalled; pause?: 'consume' | 'commit'; transformConsume?: (op: SharedUnlockOperation) => SharedUnlockOperation;
+async function setup(options: { unlockedAtMs?: number;  publishWithLocalGuards?: SharedUnlockReceiverRoute["publishWithLocalGuards"]; confirmLocalLink?: SharedUnlockReceiverRoute["confirmLocalLink"]; assertFreshAuthorization?: SharedUnlockReceiverRoute["assertFreshAuthorization"]; onInstalled?: SharedUnlockInstalled; pause?: 'consume' | 'commit'; transformConsume?: (op: SharedUnlockOperation) => SharedUnlockOperation;
   transformCommit?: (commit: SharedUnlockCommit) => SharedUnlockCommit; afterInstall?: () => void } = {}) {
   let current = true
   let checkedInstall = false
-  const original = baseline.context
+  const original = { ...baseline.context, unlockedAtMs: options.unlockedAtMs ?? baseline.context.unlockedAtMs }
   const route: SharedUnlockReceiverRoute = {
     ...(options.confirmLocalLink ? { confirmLocalLink: options.confirmLocalLink } : {}),
     assertFreshAuthorization: options.assertFreshAuthorization,
@@ -568,4 +568,11 @@ it('refuses a real receiver created while the Google popup owns manual admission
   await fresh.receiver.receive(fresh.input)
   expect(useAuthStore.getState().masterKey).toEqual(fresh.masterKey)
   expect(fresh.ack).toHaveBeenCalledOnce()
+})
+
+it('denies a root past the Web absolute ceiling as retired, so the coordinator does not reconnect and repeat it', async () => {
+  const f = await setup({ unlockedAtMs: now - 8 * 60 * 60_000 })
+  await expect(f.receiver.receive(f.input)).rejects.toBeInstanceOf(SharedUnlockAuthorizationRetiredError)
+  expect(useAuthStore.getState().masterKey).toBeNull()
+  expect(f.events).toEqual(['consume', 'envelope', 'commit', 'logout'])
 })

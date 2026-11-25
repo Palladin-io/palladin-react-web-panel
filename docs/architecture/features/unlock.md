@@ -74,6 +74,19 @@ and adopts its own receiver session. Equal/older roots do not initiate replaceme
 This prevents an unlocked Extension retaining a retired root after a newer Web
 manual unlock. Existing expiry floors remain enforced when a new Web document opens.
 
+### Unlock parity after idle
+
+While either client holds a live unlock, the other may be unlocked from it. Own
+idle erases keys and the access token but does not retire the authorization, so a
+peer that is still live hands it back without a password, including to an idle or
+reopened document. A handoff never exceeds the source's own idle deadline, and
+receiving is not activity, so two idle clients cannot renew each other. Manual
+lock/logout, OFF, disconnect and the absolute/offline ceilings (8 hours on Web)
+remain durable denials that require a new password unlock.
+
+If the first source request is rejected with an expired access token, Web refreshes
+its own session and starts a fresh attempt; other rejections are not retried.
+
 Already-unlocked Web sessions are not replacement recipients; browser cookie
 commit/discard semantics are unchanged. Firefox/Safari and mixed legacy versions
 retain v1 locked-receiver behavior. A document that selected v1 needs a reload to
