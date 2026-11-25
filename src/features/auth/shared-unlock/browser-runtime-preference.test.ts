@@ -322,3 +322,21 @@ it.each([[-1, 1], [3600, 0]] as const)('refreshes own session on a rejected sour
   expect(revalidateBrowserSession).toHaveBeenCalledTimes(refreshes)
   expect(useAuthStore.getState().isVaultLocked).toBe(false)
 })
+
+it('advertises a fresh source state only after own session revalidation settles', async () => {
+  useAuthStore.getState().unlockVault(new Uint8Array(32).fill(3), new Uint8Array(32).fill(4), root)
+  const generation = useAuthStore.getState().cryptoSessionGeneration
+  adoptSharedUnlockSource(root, 'A'.repeat(43), { sharedUnlockEnabled: true, revision: 1 }, () => {
+    if (useAuthStore.getState().cryptoSessionGeneration !== generation) throw new Error('changed')
+  })
+  vi.stubGlobal('fetch', vi.fn<typeof fetch>(async () => new Response(JSON.stringify({ sharedUnlockEnabled: true, revision: 1 }))))
+  const f = start()
+  const states = () => f.sent.flatMap(message => message.payload?.kind === 'state' ? [message.payload] : [])
+  await vi.waitFor(() => expect(states().at(-1)).toMatchObject({ source: { organizationId: root.organizationId } }))
+  const first = states().at(-1)!
+  useAuthStore.setState({ sessionRevalidating: true })
+  await vi.waitFor(() => expect(states().at(-1)).toMatchObject({ status: 'unlocked', source: null }))
+  useAuthStore.setState({ sessionRevalidating: false, accessToken: 'rotated-access' })
+  await vi.waitFor(() => expect(states().at(-1)).toMatchObject({ source: { organizationId: root.organizationId } }))
+  expect(states().at(-1)!.stateId).not.toBe(first.stateId)
+})

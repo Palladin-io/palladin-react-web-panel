@@ -80,7 +80,8 @@ export function coordinateSharedUnlockBrowser(route: SharedUnlockBrowserRoute) {
       if (!own.isVaultLocked && own.unlockLimits && Date.now() >= sessionDeadline(own.unlockLimits)) own.expireSession()
       const current = useAuthStore.getState(), state = getSharedUnlockSourceSnapshot()
       const status = current.isVaultLocked ? (current.userId ? 'locked' : 'signed-out') : 'unlocked'
-      const source = status === 'unlocked' && current.userId && !sharedUnlockPreferences.isDisabled(scope(current.userId)) && await sharedUnlockPreferenceGate.isAllowed(scope(current.userId)) && state.authorization?.accountId === current.userId && state.sourceGeneration && state.preference?.sharedUnlockEnabled
+      // Withheld during revalidation so its completion publishes a fresh source state.
+      const source = status === 'unlocked' && !current.sessionRevalidating && current.userId && !sharedUnlockPreferences.isDisabled(scope(current.userId)) && await sharedUnlockPreferenceGate.isAllowed(scope(current.userId)) && state.authorization?.accountId === current.userId && state.sourceGeneration && state.preference?.sharedUnlockEnabled
         ? { organizationId: state.authorization.organizationId, generation: state.sourceGeneration, sequence: state.authorization.sequence } : null
       return { accountId: current.userId, status, source }
     },
