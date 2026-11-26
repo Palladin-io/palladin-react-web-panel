@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react'
+import { useCallback, useEffect, useMemo, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useOrganizationMemberDirectory } from '../../shared/hooks/use-organization-member-directory'
 import { organizationIdFromAccessToken } from '../../shared/lib/organization-scope'
@@ -51,6 +51,22 @@ export function useAuditAgentNames(
     }
     return map
   }, [agents.data])
+
+  // An Agent enrolled after the cached list was read would otherwise stay an ID.
+  // Each unknown ID triggers at most one whole-list refetch, never one per row.
+  const repairedAgentIds = useRef(new Set<string>())
+  const { isSuccess: agentsLoaded, isFetching: agentsFetching, refetch: refetchAgents } = agents
+  useEffect(() => {
+    if (!enabled || !agentsLoaded || agentsFetching) return
+    const missing = items.flatMap((item) =>
+      item.agentId && !agentNameById[item.agentId] && !repairedAgentIds.current.has(item.agentId)
+        ? [item.agentId]
+        : [],
+    )
+    if (missing.length === 0) return
+    for (const id of missing) repairedAgentIds.current.add(id)
+    void refetchAgents()
+  }, [enabled, items, agentNameById, agentsLoaded, agentsFetching, refetchAgents])
 
   const memberNameById = useMemo(() => {
     return members.nameById
