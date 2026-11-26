@@ -261,3 +261,17 @@ describe('AuditLogEntry', () => {
     expect(screen.queryByText('vault-1')).not.toBeInTheDocument()
   })
 })
+
+describe('AuditLogEntry entry identity chip', () => {
+  it('shows the login next to the Entry name and marks a login changed after the event', () => {
+    const { rerender } = render(<AuditLogEntry item={item({})} entryName="X" entryAvailable entryLogin={{ login: 'synthetic_one', current: false }} />)
+    expect(screen.getByText('X · synthetic_one')).toBeInTheDocument()
+    rerender(<AuditLogEntry item={item({})} entryName="X" entryAvailable entryLogin={{ login: 'synthetic_two', current: true }} />)
+    expect(screen.getByText('X · synthetic_two (current)')).toBeInTheDocument()
+  })
+
+  it('renders an unavailable Entry without inventing a name or login', () => {
+    render(<AuditLogEntry item={item({ entryId: '55555555-5555-4555-8555-555555555555' })} entryName="55555555…555555" entryAvailable={false} />)
+    expect(screen.getByText('Unavailable entry · 55555555…555555')).toBeInTheDocument()
+  })
+})

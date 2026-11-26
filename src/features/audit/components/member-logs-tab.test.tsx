@@ -65,6 +65,8 @@ beforeEach(() => {
     userOptions: [],
   })
   mockResourceNames.mockReturnValue({
+    availableEntryIds: new Set(['entry-1', 'entry-2']),
+    resolveEntryLogin: () => undefined,
     entryNameById: { 'entry-1': 'Stripe API Key', 'entry-2': 'GitHub Token' },
     vaultNameById: { 'vault-1': 'Production' },
     vaultOptions: [{ value: 'vault-1', label: 'Production' }],

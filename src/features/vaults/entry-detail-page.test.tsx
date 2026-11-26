@@ -1074,27 +1074,22 @@ describe('EntryDetailPage — DetailsTab', () => {
       expect(screen.queryByRole('textbox', { name: /field label/i })).not.toBeInTheDocument()
     })
 
-    it('adds a binding visible in Discovery, never grantable, and saves it through the canonical encoder', async () => {
-      const user = userEvent.setup()
+    it('hides the sign-in section, heading and add action when no method is configured', async () => {
       renderCredential()
       await waitFor(() => expect(screen.getByLabelText(/^username$/i)).toHaveValue('alice'))
-      await user.click(screen.getByRole('button', { name: 'Add sign-in method' }))
-      await user.click(screen.getByRole('button', { name: 'GitHub', exact: true }))
-      await user.type(screen.getByLabelText('Provider account'), ' octocat ')
-      await user.click(screen.getByRole('button', { name: 'Save' }))
-      await user.click(screen.getByRole('button', { name: /save changes/i }))
+      expect(screen.queryByText('Sign-in methods')).not.toBeInTheDocument()
+      expect(screen.queryByRole('region', { name: 'Sign-in methods' })).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'Add sign-in method' })).not.toBeInTheDocument()
+    })
 
-      await waitFor(() => expect(updateMutateMock).toHaveBeenCalledTimes(1))
-      const { draft, secret } = encodedDraft()
-      expect(draft.content.fields).toEqual([expect.objectContaining({
-        label: 'Sign-in methods', type: 'palladin.signin.v2', value: { provider: 'github', account: 'octocat', entry: null },
-      })])
-      const fieldId = `custom:${draft.content.fields[0].id}`
-      expect(secret.agentFieldAccess[fieldId]).toBe('discovery')
-      expect(listGrantableFields(secret).map(({ id }) => id)).not.toContain(fieldId)
-      const discovery = projectAgentDiscovery(secret)
-      expect(JSON.parse(discovery!.fields.find(({ id }) => id === 'signInMethods')!.value)).toEqual({ schema: 'palladin.signin.v2', methods: [{ id: fieldId, provider: 'github', entry: null }] })
-      expect(JSON.stringify(discovery)).not.toContain('octocat')
+    it('shows a configured method within Details, directly after the login fields', async () => {
+      renderCredential([binding])
+      const methods = await screen.findByRole('region', { name: 'Sign-in methods' })
+      expect(methods).toHaveTextContent('alice@example.com')
+      expect(screen.queryByRole('button', { name: 'Add sign-in method' })).not.toBeInTheDocument()
+      const password = screen.getByLabelText(/^password$/i)
+      expect(password.compareDocumentPosition(methods) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+      expect(methods.compareDocumentPosition(screen.getByText(/^two-factor/i)) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     })
 
     it('keeps an existing restricted binding hidden until the owner turns Discovery on', async () => {

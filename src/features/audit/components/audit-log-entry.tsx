@@ -6,6 +6,7 @@ import { Icon } from '../../../shared/components/icon'
 import { shortenKey } from '../../../shared/lib/shorten-key'
 import type { AuditLogItem } from '../api/audit-api'
 import { auditEventConfig } from './audit-event-config'
+import type { AuditEntryLogin } from '../use-org-audit-resource-names'
 
 export interface AuditLogEntryProps {
   item: AuditLogItem
@@ -15,6 +16,10 @@ export interface AuditLogEntryProps {
   actorName?: string
   /** Entry display label resolved from the unlocked client-side member index. */
   entryName?: string
+  /** False when the Entry is locked, deleted or no longer readable by this member. */
+  entryAvailable?: boolean
+  /** Login decrypted from the same Entry ID; never sent to or stored by the backend. */
+  entryLogin?: AuditEntryLogin
   /** Vault display name resolved by the caller — drives the vault chip. */
   vaultName?: string
   /** Show the entry chip — off on the Entry Logs tab where the entry is fixed. */
@@ -39,6 +44,8 @@ export function AuditLogEntry({
   agentName,
   actorName,
   entryName,
+  entryAvailable,
+  entryLogin,
   vaultName,
   showEntry = true,
   showVault = false,
@@ -80,6 +87,8 @@ export function AuditLogEntry({
   const chips = buildChips(item, t, cfg.labelKey, cfg.color, {
     showEntry,
     entryName: entryName ?? (item.entryId ? shortenKey(item.entryId) : undefined),
+    entryAvailable,
+    entryLogin,
     vaultName: showVault ? vaultName : undefined,
   })
 
@@ -133,14 +142,22 @@ function buildChips(
   t: TFunction,
   typeLabelKey: string,
   typeColor: string,
-  options: { showEntry: boolean; entryName?: string; vaultName?: string },
+  options: { showEntry: boolean; entryName?: string; entryAvailable?: boolean; entryLogin?: AuditEntryLogin; vaultName?: string },
 ): Chip[] {
   const chips: Chip[] = [
     { text: t(typeLabelKey), color: typeColor },
   ]
 
   if (options.showEntry && item.entryId && options.entryName) {
-    chips.push({ icon: 'article', text: options.entryName })
+    const login = options.entryLogin
+      ? t(options.entryLogin.current ? 'audit.entryLoginCurrent' : 'audit.entryLogin', { login: options.entryLogin.login })
+      : ''
+    chips.push({
+      icon: 'article',
+      text: options.entryAvailable === false
+        ? t('audit.entryUnavailable', { id: shortenKey(item.entryId) })
+        : `${options.entryName}${login}`,
+    })
   }
 
   // Vault chip — only in the global log, where rows span vaults; resolved name

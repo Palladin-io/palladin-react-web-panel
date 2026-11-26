@@ -41,10 +41,12 @@ export interface SignInMethodFieldProps {
   entryId?: string
   /** Owner-facing Discovery switch for a recognized binding. */
   agentVisibility?: SignInMethodAgentVisibility
+  /** Entry Details: configured methods only, without a section heading or add action. */
+  inline?: boolean
 }
 
 /** Login-only collection editor; changes are committed from the modal by stable field ID. */
-export function SignInMethodField({ fields, onChange, disabled, entryId, agentVisibility }: SignInMethodFieldProps) {
+export function SignInMethodField({ fields, onChange, disabled, entryId, agentVisibility, inline = false }: SignInMethodFieldProps) {
   const { t } = useTranslation()
   const methods = readSignInMethods(fields)
   const [editing, setEditing] = useState<{ fieldId: string | null; binding: SignInBinding; visible: boolean } | null>(null)
@@ -58,13 +60,14 @@ export function SignInMethodField({ fields, onChange, disabled, entryId, agentVi
     if (agentVisibility && (editing.fieldId === null || editing.visible !== agentVisibility.isVisible(id))) agentVisibility.onChange(id, editing.visible)
     close()
   }
+  if (inline && methods.length === 0) return null
   return (
-    <section className="ph-no-capture flex flex-col gap-3">
-      <div className="flex items-center gap-2 pr-[calc(0.75rem+1px)]">
+    <section className="ph-no-capture flex flex-col gap-3" aria-label={inline ? t('vault.entries.signInMethod.title') : undefined}>
+      {inline ? null : <div className="flex items-center gap-2 pr-[calc(0.75rem+1px)]">
         <div className="min-w-0 flex-1"><SectionHeader>{t('vault.entries.signInMethod.title')}</SectionHeader></div>
         <AddButton label={t('vault.entries.signInMethod.add')} disabled={disabled}
           onClick={() => setEditing({ fieldId: null, binding: { provider: 'google', account: null, entry: null }, visible: agentVisibility?.newMethodVisible ?? false })} />
-      </div>
+      </div>}
       {methods.length > 0 ? <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
         {methods.map((method) => <div key={method.fieldId}
           className="flex min-w-0 items-center gap-3 rounded-lg border border-[var(--cv-input-border)] p-3">

@@ -66,6 +66,8 @@ beforeEach(() => {
     userOptions: [{ value: 'user-1', label: 'Patryk' }],
   })
   mockResourceNames.mockReturnValue({
+    availableEntryIds: new Set(['entry-1', 'entry-2']),
+    resolveEntryLogin: () => undefined,
     entryNameById: {
       'entry-1': 'Stripe API Key',
       'entry-2': 'GitHub Token',

@@ -4,8 +4,17 @@ import { useMemberSyncStore } from '../vaults/sync/member-sync-store'
 import type { AuditLogItem } from './api/audit-api'
 import type { AuditFilterOption } from './components/audit-filter-bar'
 
+export interface AuditEntryLogin {
+  login: string
+  /** The Entry changed after this event, so the login is current, not proven historical. */
+  current: boolean
+}
+
 export interface OrgAuditResourceNames {
   entryNameById: Record<string, string>
+  /** Entries resolved from the unlocked member index; others render as unavailable. */
+  availableEntryIds: ReadonlySet<string>
+  resolveEntryLogin: (entryId: string, occurredAt: string) => AuditEntryLogin | undefined
   vaultNameById: Record<string, string>
   vaultOptions: AuditFilterOption[]
   resolveEntryName: (entryId: string) => string
@@ -26,9 +35,10 @@ export function useOrgAuditResourceNames(
     [memberVaults],
   )
 
-  const { entryNameById, vaultNameById } = useMemo(() => {
+  const { entryNameById, vaultNameById, entryRecords } = useMemo(() => {
     const entryNames: Record<string, string> = {}
     const vaultNames: Record<string, string> = {}
+    const records = new Map<string, { username: string | null; updatedAt: string }>()
 
     for (const item of items) {
       if (item.vaultId) {
@@ -37,17 +47,24 @@ export function useOrgAuditResourceNames(
 
         if (item.entryId) {
           const record = vault?.entries.get(item.entryId)
-          entryNames[item.entryId] = !record?.corrupt && record?.payload?.memberLabel
-            ? record.payload.memberLabel
-            : shortenKey(item.entryId)
+          const readable = record && !record.corrupt && record.payload ? record : null
+          entryNames[item.entryId] = readable?.payload?.memberLabel || shortenKey(item.entryId)
+          if (readable) records.set(item.entryId, { username: readable.payload?.username ?? null, updatedAt: readable.updatedAt })
         }
       } else if (item.entryId) {
         entryNames[item.entryId] = shortenKey(item.entryId)
       }
     }
 
-    return { entryNameById: entryNames, vaultNameById: vaultNames }
+    return { entryNameById: entryNames, vaultNameById: vaultNames, entryRecords: records }
   }, [items, memberVaults])
+
+  const availableEntryIds = useMemo(() => new Set(entryRecords.keys()), [entryRecords])
+  const resolveEntryLogin = useCallback((entryId: string, occurredAt: string) => {
+    const record = entryRecords.get(entryId)
+    if (!record?.username) return undefined
+    return { login: record.username, current: Date.parse(record.updatedAt) > Date.parse(occurredAt) }
+  }, [entryRecords])
 
   const resolveEntryName = useCallback(
     (entryId: string) => entryNameById[entryId] ?? shortenKey(entryId),
@@ -60,6 +77,8 @@ export function useOrgAuditResourceNames(
 
   return {
     entryNameById,
+    availableEntryIds,
+    resolveEntryLogin,
     vaultNameById,
     vaultOptions,
     resolveEntryName,

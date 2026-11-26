@@ -33,6 +33,8 @@ beforeEach(() => {
     resolveActorName: (row) => row.userId === 'user-1' ? 'Patryk' : undefined,
   })
   mockResourceNames.mockReturnValue({
+    availableEntryIds: new Set(['entry-1']),
+    resolveEntryLogin: () => undefined,
     entryNameById: { 'entry-1': 'Stale Entry' },
     vaultNameById: { 'vault-1': 'Personal' },
     vaultOptions: [{ value: 'vault-1', label: 'Personal' }],
