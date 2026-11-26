@@ -265,9 +265,9 @@ describe('AuditLogEntry', () => {
 describe('AuditLogEntry entry identity chip', () => {
   it('shows the login next to the Entry name and marks a login changed after the event', () => {
     const { rerender } = render(<AuditLogEntry item={item({})} entryName="X" entryAvailable entryLogin={{ login: 'synthetic_one', current: false }} />)
-    expect(screen.getByText('X · synthetic_one')).toBeInTheDocument()
+    expect(screen.getByText('synthetic_one')).toBeInTheDocument()
     rerender(<AuditLogEntry item={item({})} entryName="X" entryAvailable entryLogin={{ login: 'synthetic_two', current: true }} />)
-    expect(screen.getByText('X · synthetic_two (current)')).toBeInTheDocument()
+    expect(screen.getByText('synthetic_two (current)')).toBeInTheDocument()
   })
 
   it('renders an unavailable Entry without inventing a name or login', () => {

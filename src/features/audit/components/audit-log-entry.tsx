@@ -149,15 +149,18 @@ function buildChips(
   ]
 
   if (options.showEntry && item.entryId && options.entryName) {
-    const login = options.entryLogin
-      ? t(options.entryLogin.current ? 'audit.entryLoginCurrent' : 'audit.entryLogin', { login: options.entryLogin.login })
-      : ''
     chips.push({
       icon: 'article',
       text: options.entryAvailable === false
         ? t('audit.entryUnavailable', { id: shortenKey(item.entryId) })
-        : `${options.entryName}${login}`,
+        : options.entryName,
     })
+    if (options.entryLogin) {
+      chips.push({
+        icon: 'person',
+        text: t(options.entryLogin.current ? 'audit.entryLoginCurrent' : 'audit.entryLogin', { login: options.entryLogin.login }),
+      })
+    }
   }
 
   // Vault chip — only in the global log, where rows span vaults; resolved name
