@@ -1,12 +1,17 @@
-import { useCallback, useEffect, useMemo, useRef } from 'react'
+import { useCallback, useEffect, useMemo } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { useOrganizationMemberDirectory } from '../../shared/hooks/use-organization-member-directory'
 import { organizationIdFromAccessToken } from '../../shared/lib/organization-scope'
 import { shortenKey } from '../../shared/lib/shorten-key'
-import { useAgentNames } from '../agents'
+import { AGENTS_QUERY_KEY, useAgentNames } from '../agents'
 import { useAuthStore } from '../auth'
 import type { AuditLogItem } from './api/audit-api'
 import type { AuditFilterOption } from './components/audit-filter-bar'
+
+// Repair attempts live exactly as long as the shared Agent cache entry, so remounts
+// and other audit surfaces never refetch again for an ID the same cache already missed.
+const repairedAgentIdsByCache = new WeakMap<object, Set<string>>()
 
 export interface AuditAgentNames {
   /** id → display name from the authorized Agent cache only. */
@@ -53,24 +58,21 @@ export function useAuditAgentNames(
   }, [agents.data])
 
   // An Agent enrolled after the cached list was read would otherwise stay an ID.
-  // Refetch the whole list only when it predates an unresolved row; the shared
-  // cache timestamp bounds repeats across mounts, the ref within one mount.
-  const repairedAgentIds = useRef(new Set<string>())
-  const { isSuccess: agentsLoaded, isFetching: agentsFetching, dataUpdatedAt: agentsUpdatedAt, refetch: refetchAgents } = agents
+  const queryClient = useQueryClient()
+  const { isSuccess: agentsLoaded, isFetching: agentsFetching, refetch: refetchAgents } = agents
   useEffect(() => {
     if (!enabled || !agentsLoaded || agentsFetching) return
+    const cacheEntry = queryClient.getQueryCache().find({ queryKey: AGENTS_QUERY_KEY, exact: true })
+    if (!cacheEntry) return
+    let repaired = repairedAgentIdsByCache.get(cacheEntry)
+    if (!repaired) repairedAgentIdsByCache.set(cacheEntry, (repaired = new Set()))
     const missing = items.flatMap((item) =>
-      item.agentId
-        && !agentNameById[item.agentId]
-        && !repairedAgentIds.current.has(item.agentId)
-        && Date.parse(item.createdAt) > agentsUpdatedAt
-        ? [item.agentId]
-        : [],
+      item.agentId && !agentNameById[item.agentId] && !repaired.has(item.agentId) ? [item.agentId] : [],
     )
     if (missing.length === 0) return
-    for (const id of missing) repairedAgentIds.current.add(id)
+    for (const id of missing) repaired.add(id)
     void refetchAgents()
-  }, [enabled, items, agentNameById, agentsLoaded, agentsFetching, agentsUpdatedAt, refetchAgents])
+  }, [enabled, items, agentNameById, agentsLoaded, agentsFetching, queryClient, refetchAgents])
 
   const memberNameById = useMemo(() => {
     return members.nameById
