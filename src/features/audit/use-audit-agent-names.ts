@@ -53,20 +53,24 @@ export function useAuditAgentNames(
   }, [agents.data])
 
   // An Agent enrolled after the cached list was read would otherwise stay an ID.
-  // Each unknown ID triggers at most one whole-list refetch, never one per row.
+  // Refetch the whole list only when it predates an unresolved row; the shared
+  // cache timestamp bounds repeats across mounts, the ref within one mount.
   const repairedAgentIds = useRef(new Set<string>())
-  const { isSuccess: agentsLoaded, isFetching: agentsFetching, refetch: refetchAgents } = agents
+  const { isSuccess: agentsLoaded, isFetching: agentsFetching, dataUpdatedAt: agentsUpdatedAt, refetch: refetchAgents } = agents
   useEffect(() => {
     if (!enabled || !agentsLoaded || agentsFetching) return
     const missing = items.flatMap((item) =>
-      item.agentId && !agentNameById[item.agentId] && !repairedAgentIds.current.has(item.agentId)
+      item.agentId
+        && !agentNameById[item.agentId]
+        && !repairedAgentIds.current.has(item.agentId)
+        && Date.parse(item.createdAt) > agentsUpdatedAt
         ? [item.agentId]
         : [],
     )
     if (missing.length === 0) return
     for (const id of missing) repairedAgentIds.current.add(id)
     void refetchAgents()
-  }, [enabled, items, agentNameById, agentsLoaded, agentsFetching, refetchAgents])
+  }, [enabled, items, agentNameById, agentsLoaded, agentsFetching, agentsUpdatedAt, refetchAgents])
 
   const memberNameById = useMemo(() => {
     return members.nameById
