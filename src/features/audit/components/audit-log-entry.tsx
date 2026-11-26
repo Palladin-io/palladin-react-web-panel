@@ -124,7 +124,14 @@ export function AuditLogEntry({
           {chips.map((chip, i) => (
             <MetadataBadge key={i} color={chip.color}>
               {chip.icon ? <Icon name={chip.icon} size={11} /> : null}
-              {chip.full ? <Tooltip content={chip.full} always>{chip.text}</Tooltip> : chip.text}
+              {chip.full ? (
+                <Tooltip content={chip.full} always>
+                  <span tabIndex={0} className="rounded-sm focus-visible:outline focus-visible:outline-1">
+                    <span aria-hidden="true">{chip.text}</span>
+                    <span className="sr-only">{chip.fullLabel ?? chip.full}</span>
+                  </span>
+                </Tooltip>
+              ) : chip.text}
             </MetadataBadge>
           ))}
         </div>
@@ -136,8 +143,10 @@ export function AuditLogEntry({
 interface Chip {
   icon?: string
   text: string
-  /** Full value shown on hover when `text` was shortened. */
+  /** Full value shown on hover/focus when `text` was shortened. */
   full?: string
+  /** Full accessible chip text when it differs from `full` (e.g. a "current" suffix). */
+  fullLabel?: string
   color?: string
 }
 
@@ -169,7 +178,10 @@ function buildChips(
       chips.push({
         icon: 'person',
         text: t(options.entryLogin.current ? 'audit.entryLoginCurrent' : 'audit.entryLogin', { login: login.text }),
-        ...(login.full ? { full: options.entryLogin.login } : {}),
+        ...(login.full ? {
+          full: options.entryLogin.login,
+          fullLabel: t(options.entryLogin.current ? 'audit.entryLoginCurrent' : 'audit.entryLogin', { login: options.entryLogin.login }),
+        } : {}),
       })
     }
   }

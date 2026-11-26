@@ -277,6 +277,16 @@ describe('AuditLogEntry entry identity chip', () => {
   })
 })
 
+describe('AuditLogEntry shortened chips', () => {
+  it('keeps the full login reachable by keyboard and screen readers', () => {
+    const login = 'marek.demo.with.a.very.long.mailbox.name@regional-subsidiary.example.com'
+    render(<AuditLogEntry item={item({})} entryName="X" entryAvailable entryLogin={{ login, current: true }} />)
+    expect(screen.getByText(`${login} (current)`)).toHaveClass('sr-only')
+    const trigger = screen.getByText(middleEllipsis(login) + ' (current)').parentElement!
+    expect(trigger).toHaveAttribute('tabindex', '0')
+  })
+})
+
 describe('middleEllipsis', () => {
   it('keeps both ends of a long Entry name or login and leaves short values intact', () => {
     const value = 'marek.demo.with.a.very.long.mailbox.name@regional-subsidiary.example.com'
