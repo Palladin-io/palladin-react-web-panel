@@ -796,6 +796,7 @@
   "vault.entries.visibility.onGrantRuntime": "Zaufany runtime po grancie",
   "vault.entries.totp.section": "Uwierzytelnianie dwuskładnikowe",
   "vault.entries.signInMethod.save": "Zapisz",
+  "vault.entries.signInMethod.signInWith": "Zaloguj przez",
   "vault.entries.signInMethod.edit": "Edytuj metodę logowania",
   "vault.entries.signInMethod.previousProviders": "Poprzedni dostawcy",
   "vault.entries.signInMethod.nextProviders": "Następni dostawcy",

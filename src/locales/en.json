@@ -778,6 +778,7 @@
   "vault.entries.visibility.onGrantRuntime": "Trusted runtime after grant",
   "vault.entries.totp.section": "Two-factor authentication",
   "vault.entries.signInMethod.save": "Save",
+  "vault.entries.signInMethod.signInWith": "Sign in with",
   "vault.entries.signInMethod.edit": "Edit sign-in method",
   "vault.entries.signInMethod.previousProviders": "Previous providers",
   "vault.entries.signInMethod.nextProviders": "Next providers",

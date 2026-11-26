@@ -140,8 +140,8 @@ custom method IDs retain their existing hexadecimal case.
 
 `SignInMethodField` appears last after Notes in the create form, with a heading
 and `AddButton`. Entry Details renders it `inline` directly after the username and
-password: nothing when no method exists, otherwise the responsive compact
-provider-logo/name/account grid with individual edit buttons and no heading or add action. The modal
+password: nothing when no method exists, otherwise "Sign in with" cards (account,
+provider logo at the end opening the editor) with no heading or add action. The modal
 uses provider-logo tiles, explicit local provider-account rows and a manual/unspecified
 option, with shared controls, `ModalShell` and `DialogFooter`. The safe initial
 Google provider never selects a linked account. Account/provider changes

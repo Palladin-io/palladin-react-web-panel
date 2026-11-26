@@ -3,7 +3,9 @@ import { Fragment, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { TFunction } from 'i18next'
 import { Icon } from '../../../shared/components/icon'
+import { Tooltip } from '../../../shared/components/tooltip'
 import { shortenKey } from '../../../shared/lib/shorten-key'
+import { middleEllipsis } from '../../../shared/lib/middle-ellipsis'
 import type { AuditLogItem } from '../api/audit-api'
 import { auditEventConfig } from './audit-event-config'
 import type { AuditEntryLogin } from '../use-org-audit-resource-names'
@@ -122,7 +124,7 @@ export function AuditLogEntry({
           {chips.map((chip, i) => (
             <MetadataBadge key={i} color={chip.color}>
               {chip.icon ? <Icon name={chip.icon} size={11} /> : null}
-              {chip.text}
+              {chip.full ? <Tooltip content={chip.full} always>{chip.text}</Tooltip> : chip.text}
             </MetadataBadge>
           ))}
         </div>
@@ -134,7 +136,14 @@ export function AuditLogEntry({
 interface Chip {
   icon?: string
   text: string
+  /** Full value shown on hover when `text` was shortened. */
+  full?: string
   color?: string
+}
+
+function fitted(value: string): Pick<Chip, 'text' | 'full'> {
+  const text = middleEllipsis(value)
+  return text === value ? { text } : { text, full: value }
 }
 
 function buildChips(
@@ -151,14 +160,16 @@ function buildChips(
   if (options.showEntry && item.entryId && options.entryName) {
     chips.push({
       icon: 'article',
-      text: options.entryAvailable === false
-        ? t('audit.entryUnavailable', { id: shortenKey(item.entryId) })
-        : options.entryName,
+      ...(options.entryAvailable === false
+        ? { text: t('audit.entryUnavailable', { id: shortenKey(item.entryId) }) }
+        : fitted(options.entryName)),
     })
     if (options.entryLogin) {
+      const login = fitted(options.entryLogin.login)
       chips.push({
         icon: 'person',
-        text: t(options.entryLogin.current ? 'audit.entryLoginCurrent' : 'audit.entryLogin', { login: options.entryLogin.login }),
+        text: t(options.entryLogin.current ? 'audit.entryLoginCurrent' : 'audit.entryLogin', { login: login.text }),
+        ...(login.full ? { full: options.entryLogin.login } : {}),
       })
     }
   }

@@ -1,6 +1,7 @@
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import { AuditLogEntry } from './audit-log-entry'
+import { middleEllipsis } from '../../../shared/lib/middle-ellipsis'
 import type { AuditLogItem } from '../api/audit-api'
 
 // The sentence renders names in their own bold <span>s, so the text spans
@@ -273,5 +274,16 @@ describe('AuditLogEntry entry identity chip', () => {
   it('renders an unavailable Entry without inventing a name or login', () => {
     render(<AuditLogEntry item={item({ entryId: '55555555-5555-4555-8555-555555555555' })} entryName="55555555…555555" entryAvailable={false} />)
     expect(screen.getByText('Unavailable entry · 55555555…555555')).toBeInTheDocument()
+  })
+})
+
+describe('middleEllipsis', () => {
+  it('keeps both ends of a long Entry name or login and leaves short values intact', () => {
+    const value = 'marek.demo.with.a.very.long.mailbox.name@regional-subsidiary.example.com'
+    const shortened = middleEllipsis(value)
+    expect([...shortened]).toHaveLength(32)
+    expect(shortened.startsWith('marek.demo.with.a.v')).toBe(true)
+    expect(shortened.endsWith('.example.com')).toBe(true)
+    expect(middleEllipsis('@anna.demo')).toBe('@anna.demo')
   })
 })

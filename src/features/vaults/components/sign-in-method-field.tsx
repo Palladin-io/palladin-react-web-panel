@@ -69,7 +69,21 @@ export function SignInMethodField({ fields, onChange, disabled, entryId, agentVi
           onClick={() => setEditing({ fieldId: null, binding: { provider: 'google', account: null, entry: null }, visible: agentVisibility?.newMethodVisible ?? false })} />
       </div>}
       {methods.length > 0 ? <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-        {methods.map((method) => <div key={method.fieldId}
+        {methods.map((method) => inline ? <div key={method.fieldId}
+          className="flex min-w-0 items-center gap-3 rounded-lg border border-[var(--cv-input-border)] p-3">
+          <div className="min-w-0 flex-1">
+            <div className="truncate text-meta text-[var(--cv-t3)]">{t('vault.entries.signInMethod.signInWith')}</div>
+            <Tooltip content={method.binding.account ?? t(`vault.entries.signInMethod.providers.${method.binding.provider}`)} className="block truncate text-ui font-medium text-[var(--cv-t1)]">
+              {method.binding.account ?? t(`vault.entries.signInMethod.providers.${method.binding.provider}`)}
+            </Tooltip>
+          </div>
+          <button type="button" disabled={disabled}
+            aria-label={`${t('vault.entries.signInMethod.edit')}: ${t(`vault.entries.signInMethod.providers.${method.binding.provider}`)}`}
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md hover:bg-[var(--cv-selection)] disabled:opacity-50"
+            onClick={() => setEditing({ ...method, visible: agentVisibility?.isVisible(method.fieldId) ?? false })}>
+            <img src={`/sign-in-providers/${method.binding.provider}.svg`} alt="" className={`h-6 w-6 object-contain ${method.binding.provider === 'apple' || method.binding.provider === 'github' ? 'brightness-0 dark:invert' : ''}`} />
+          </button>
+        </div> : <div key={method.fieldId}
           className="flex min-w-0 items-center gap-3 rounded-lg border border-[var(--cv-input-border)] p-3">
           <img src={`/sign-in-providers/${method.binding.provider}.svg`} alt="" className={`h-6 w-6 shrink-0 object-contain ${method.binding.provider === 'apple' || method.binding.provider === 'github' ? 'brightness-0 dark:invert' : ''}`}  />
           <div className="min-w-0 flex-1">
