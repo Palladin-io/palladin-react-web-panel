@@ -141,6 +141,14 @@ Group related fields under `SectionHeader` (`features/vaults/components/section-
 
 ## Inline edit pattern (always-visible fields)
 
+**Exception — Entry Details (CVT-755):** the Entry Details tab opens in a read-only
+`EntryReadView` (identity card with *Edit*, label/value rows with reveal/copy, no
+agent-visibility controls) and switches to the existing form only after *Edit*.
+The form footer is *Cancel* + *Save Changes*; a successful save returns to the
+read-only view. Unsaved edits are guarded by one `DiscardChangesDialog` on Cancel,
+on tab switch and on router navigation (`useBlocker`). Other detail panels keep
+the always-visible pattern below.
+
 Detail panels show fields **always visible** — no pencil/edit-mode toggle. Interactivity is gated by a `canEdit` prop derived at the parent level:
 
 ```tsx
