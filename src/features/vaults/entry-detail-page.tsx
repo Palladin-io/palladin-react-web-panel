@@ -682,7 +682,8 @@ function DetailsTab({ vault, entry, loadCanonical, onDeleted, onDirtyChange }: D
 
   const contentChanged = useMemo(() => {
     const current = currentPlaintext()
-    return current !== null && originalPlaintext !== null && !plaintextsEqual(current, originalPlaintext)
+    return current !== null && originalPlaintext !== null
+      && !plaintextsEqual(comparablePlaintext(current), comparablePlaintext(originalPlaintext))
   }, [currentPlaintext, originalPlaintext])
 
   const metadataChanged = useMemo(() => {
@@ -1694,6 +1695,15 @@ function scriptChangeKindKeys(previous: EntryPlaintext, next: EntryPlaintext): s
     changes.push('vault.entries.script.changeResultPolicy')
   }
   return changes.length > 0 ? changes : ['vault.entries.script.changeMetadata']
+}
+
+// Decrypted Member secrets carry `fields: []` and no `v`; the form omits empty fields and stamps `v`.
+// Neither difference is a user edit, so dirty detection compares content without them.
+function comparablePlaintext(plaintext: EntryPlaintext): EntryPlaintext {
+  const rest: Partial<EntryPlaintext> = { ...plaintext }
+  delete rest.v
+  if (!plaintext.fields?.length) delete rest.fields
+  return rest as EntryPlaintext
 }
 
 function foldFieldsPart(fields: CustomField[]): { v?: typeof BLOB_VERSION_V2; fields?: CustomField[] } {

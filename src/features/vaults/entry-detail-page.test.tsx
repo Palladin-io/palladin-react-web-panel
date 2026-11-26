@@ -965,6 +965,26 @@ describe('EntryDetailPage — DetailsTab', () => {
     expect(saveButton).not.toBeDisabled()
   })
 
+  it.each([
+    ['no custom fields', []],
+    ['an unversioned custom field', [{ id: 'note-id', label: 'Account ID', type: 'text', value: 'acct-1' }]],
+  ])('treats an untouched decrypted Credential with %s as unchanged', async (_, fields) => {
+    const user = userEvent.setup()
+    unlockedAuthStore()
+    // fromMemberSecret yields `fields: []` and no `v` marker; the editor must not see that as an edit.
+    state.decryptResult = { type: ENTRY_TYPE_CREDENTIAL, username: 'alice', password: 'fixture-password',
+      url: 'https://example.com', fields: fields as CustomField[] }
+    state.memberIndex = { memberLabel: 'Example', entryType: 'credential', icon: null }
+    useVaultMock.mockReturnValue({ isPending: false, isError: false, data: VAULT })
+    useEntryDetailMock.mockReturnValue({ isPending: false, isError: false, data: CREDENTIAL_ENTRY })
+    await renderEditing(<EntryDetailPage vaultId="vault-1" entryId="entry-2" />, { wrapper })
+
+    expect(screen.getByRole('button', { name: /save changes/i })).toBeDisabled()
+    await user.click(screen.getByRole('button', { name: 'Cancel' }))
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Edit' })).toBeInTheDocument()
+  })
+
   it('restores a KEY URL from encrypted content and preserves it on update', async () => {
     const user = userEvent.setup()
     unlockedAuthStore()
