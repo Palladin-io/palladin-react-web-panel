@@ -366,6 +366,7 @@ describe('EntryDetailPage — DetailsTab', () => {
     await user.click(screen.getByRole('button', { name: /save changes/i }))
     await waitFor(() => expect(screen.getByRole('button', { name: 'Edit' })).toBeInTheDocument())
     expect(screen.queryByLabelText(/^label$/i)).not.toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Renamed' })).toBeInTheDocument()
   })
 
   it('asks before discarding unsaved edits on Cancel, tab switch and navigation', async () => {

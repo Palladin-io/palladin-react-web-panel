@@ -102,6 +102,19 @@ describe('EntryReadView', () => {
     expect(screen.getByRole('button', { name: 'Show less' })).toBeInTheDocument()
   })
 
+  it('pins a native TOTP like the editor and keeps custom TOTP fields visible', () => {
+    renderView(secret({
+      type: ENTRY_TYPE_CREDENTIAL, username: 'alice', password: 'p',
+      totp: 'otpauth://totp/Example:alice?secret=JBSWY3DPEHPK3PXP&issuer=Example',
+      fields: [{ id: 'custom-totp', label: 'Backup authenticator', type: 'totp',
+        value: { secret: 'GEZDGNBVGY3TQOJQ', algorithm: 'SHA1', digits: 6, period: 30 } as never }],
+    }))
+
+    expect(screen.getByText('Two-factor authentication')).toBeInTheDocument()
+    expect(screen.getByText('Backup authenticator')).toBeInTheDocument()
+    expect(screen.getAllByRole('timer')).toHaveLength(2)
+  })
+
   it('conceals an unknown TOTP payload instead of rendering a code', () => {
     renderView(secret({ type: ENTRY_TYPE_KEY, value: 'v', fields: [
       { id: 'future', label: 'Future TOTP', type: 'totp', value: { seed: 'new-format' } as never },

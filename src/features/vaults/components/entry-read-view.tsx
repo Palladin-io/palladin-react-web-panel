@@ -59,11 +59,15 @@ export function EntryReadView({
   const url = 'url' in content ? content.url ?? '' : ''
   const customFields = readCustomFields(content)
   const signIn = content.type === ENTRY_TYPE_CREDENTIAL ? readSignInMethods(customFields) : []
-  const totpField = content.type === ENTRY_TYPE_CREDENTIAL ? customFields.find(isRenderableTotp) : undefined
-  const otherFields = customFields.filter((field) => field !== totpField && !isSignInMethodField(field))
-  const totpParams = totpField && isTotpField(totpField)
-    ? totpField.value
-    : content.type === ENTRY_TYPE_CREDENTIAL && content.totp ? parseOtpauthUri(content.totp) : null
+  // Same precedence as the editor: a parseable native TOTP wins and keeps every custom field;
+  // otherwise the first custom TOTP field is pinned.
+  const nativeTotp = content.type === ENTRY_TYPE_CREDENTIAL && content.totp ? parseOtpauthUri(content.totp) : null
+  const pinnedField = content.type === ENTRY_TYPE_CREDENTIAL && !nativeTotp
+    ? customFields.find((field) => field.type === 'totp')
+    : undefined
+  const pinnedTotp = pinnedField && isRenderableTotp(pinnedField) ? pinnedField : undefined
+  const totpParams = nativeTotp ?? pinnedTotp?.value ?? null
+  const otherFields = customFields.filter((field) => field !== pinnedTotp && !isSignInMethodField(field))
   const notes = content.notes?.trim() ?? ''
   const description = content.type === ENTRY_TYPE_SCRIPT
     ? content.execution?.description ?? secret.description

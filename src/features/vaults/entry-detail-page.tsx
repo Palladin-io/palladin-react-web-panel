@@ -821,6 +821,16 @@ function DetailsTab({ vault, entry, loadCanonical, onDeleted, onDirtyChange }: D
       onSuccess: () => {
         toast.success(t('vault.entry.detail.saveSuccess'))
         setOriginalPlaintext(current)
+        // The read view renders this snapshot; the sync store may publish the new revision later.
+        setOriginalSecret({
+          ...originalSecret,
+          memberLabel: label.trim(),
+          agentLabel: label.trim(),
+          description: description.trim() || undefined,
+          iconReference,
+          content: current,
+          agentVisibilityPolicy: nextPolicy,
+        })
         setEditing(false)
         setPendingScriptSave(null)
         setScriptImpact(null)
