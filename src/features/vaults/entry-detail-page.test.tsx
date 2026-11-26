@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { act, render, screen, waitFor } from '@testing-library/react'
+import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -37,7 +37,13 @@ const {
   repairIconScopeMock,
   structuralMismatch,
   state,
+  blockerState,
+  blockerProceedMock,
+  blockerResetMock,
 } = vi.hoisted(() => ({
+  blockerState: { status: 'idle' as 'idle' | 'blocked', shouldBlock: (() => false) as () => boolean },
+  blockerProceedMock: vi.fn(),
+  blockerResetMock: vi.fn(),
   useVaultMock: vi.fn(),
   useEntryDetailMock: vi.fn(),
   updateMutateMock: vi.fn(),
@@ -88,6 +94,10 @@ type EntryPlaintextLite =
 
 vi.mock('@tanstack/react-router', () => ({
   useNavigate: () => navigateMock,
+  useBlocker: (options: { shouldBlockFn: () => boolean }) => {
+    blockerState.shouldBlock = options.shouldBlockFn
+    return { status: blockerState.status, proceed: blockerProceedMock, reset: blockerResetMock }
+  },
 }))
 vi.mock('../../shared/hooks/use-wide-screen', () => ({ useWideScreen: () => state.wideScreen }))
 vi.mock('./global-entries-page', () => ({ GlobalEntriesPanel: () => null }))
@@ -277,6 +287,12 @@ function wrapper({ children }: { children: ReactNode }) {
   return <QueryClientProvider client={client}>{children}</QueryClientProvider>
 }
 
+async function renderEditing(ui: React.ReactElement, options: Parameters<typeof render>[1]) {
+  const view = render(ui, options)
+  await userEvent.click(await screen.findByRole('button', { name: 'Edit' }))
+  return view
+}
+
 function unlockedAuthStore() {
   useAuthStore.setState({
     userId: '11111111-1111-4111-8111-111111111111',
@@ -298,20 +314,89 @@ describe('EntryDetailPage — DetailsTab', () => {
     useVaultMock.mockReturnValue({ isPending: false, isError: false, data: VAULT })
     useEntryDetailMock.mockReturnValue({ isPending: false, isError: false, data: KEY_ENTRY })
     const view = render(<EntryDetailPage vaultId="vault-1" entryId="entry-1" fromEntries />, { wrapper })
-    await waitFor(() => expect(screen.getByLabelText(/^value$/i)).toHaveValue('previous-entry-secret'))
-    await user.click(screen.getByRole('button', { name: /^reveal$/i }))
-    expect(screen.getByLabelText(/^value$/i)).not.toHaveClass('secret-mask')
+    await user.click(await screen.findByRole('button', { name: /^reveal$/i }))
+    expect(screen.getByText('previous-entry-secret')).toBeInTheDocument()
     let rejectOpen!: (error: Error) => void
     openCurrentEntryMock.mockImplementationOnce(() => new Promise((_resolve, reject) => { rejectOpen = reject }))
     view.rerender(<EntryDetailPage vaultId="vault-1" entryId="entry-2" fromEntries />)
-    expect(screen.getByLabelText(/^value$/i)).toHaveValue('')
-    expect(screen.queryByDisplayValue('previous-entry-secret')).not.toBeInTheDocument()
+    expect(screen.queryByText('previous-entry-secret')).not.toBeInTheDocument()
     await act(async () => rejectOpen(new Error('test decrypt failure')))
-    expect(screen.queryByDisplayValue('previous-entry-secret')).not.toBeInTheDocument()
+    expect(screen.queryByText('previous-entry-secret')).not.toBeInTheDocument()
     state.decryptResult = { type: ENTRY_TYPE_KEY, value: 'new-entry-secret' }
     view.rerender(<EntryDetailPage vaultId="vault-1" entryId="entry-3" fromEntries />)
-    await waitFor(() => expect(screen.getByLabelText(/^value$/i)).toHaveValue('new-entry-secret'))
-    expect(screen.getByLabelText(/^value$/i)).toHaveClass('secret-mask')
+    expect(await screen.findByRole('button', { name: /^reveal$/i })).toBeInTheDocument()
+    expect(screen.queryByText('new-entry-secret')).not.toBeInTheDocument()
+  })
+
+  it('opens read-only and enters the editor only on Edit', async () => {
+    const user = userEvent.setup()
+    unlockedAuthStore()
+    state.decryptResult = { type: ENTRY_TYPE_CREDENTIAL, username: 'alice', password: 'fixture-password',
+      url: 'https://example.com/login', notes: 'line one' }
+    state.memberIndex = { memberLabel: 'Example', entryType: 'credential', icon: null }
+    useVaultMock.mockReturnValue({ isPending: false, isError: false, data: VAULT })
+    useEntryDetailMock.mockReturnValue({ isPending: false, isError: false, data: CREDENTIAL_ENTRY })
+    render(<EntryDetailPage vaultId="vault-1" entryId="entry-2" />, { wrapper })
+
+    expect(await screen.findByText('alice')).toBeInTheDocument()
+    expect(screen.getByText('line one')).toBeInTheDocument()
+    expect(screen.queryByText('fixture-password')).not.toBeInTheDocument()
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /open website/i })).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Edit' }))
+    expect(screen.getByLabelText(/^username$/i)).toHaveValue('alice')
+    await user.click(screen.getByRole('button', { name: 'Cancel' }))
+    expect(screen.queryByLabelText(/^username$/i)).not.toBeInTheDocument()
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
+  it('returns to the read-only view after a successful save', async () => {
+    const user = userEvent.setup()
+    unlockedAuthStore()
+    state.decryptResult = { type: ENTRY_TYPE_KEY, value: 'sk_live_123' }
+    useVaultMock.mockReturnValue({ isPending: false, isError: false, data: VAULT })
+    useEntryDetailMock.mockReturnValue({ isPending: false, isError: false, data: KEY_ENTRY })
+    canonicalRefetchMock.mockResolvedValue({ data: KEY_ENTRY })
+    updateMutateMock.mockImplementation((_input, options) => options.onSuccess())
+    await renderEditing(<EntryDetailPage vaultId="vault-1" entryId="entry-1" />, { wrapper })
+    const labelInput = screen.getByLabelText(/^label$/i)
+    await user.clear(labelInput)
+    await user.type(labelInput, 'Renamed')
+    await user.click(screen.getByRole('button', { name: /save changes/i }))
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Edit' })).toBeInTheDocument())
+    expect(screen.queryByLabelText(/^label$/i)).not.toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Renamed' })).toBeInTheDocument()
+  })
+
+  it('asks before discarding unsaved edits on Cancel, tab switch and navigation', async () => {
+    const user = userEvent.setup()
+    unlockedAuthStore()
+    state.decryptResult = { type: ENTRY_TYPE_KEY, value: 'sk_live_123' }
+    useVaultMock.mockReturnValue({ isPending: false, isError: false, data: VAULT })
+    useEntryDetailMock.mockReturnValue({ isPending: false, isError: false, data: KEY_ENTRY })
+    const view = await renderEditing(<EntryDetailPage vaultId="vault-1" entryId="entry-1" />, { wrapper })
+    expect(blockerState.shouldBlock()).toBe(false)
+    await user.type(screen.getByLabelText(/^label$/i), ' renamed')
+    expect(blockerState.shouldBlock()).toBe(true)
+
+    await user.click(screen.getByRole('tab', { name: /logs/i }))
+    expect(screen.getByRole('dialog', { name: /discard unsaved changes/i })).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: /keep editing/i }))
+    expect(screen.getByLabelText(/^label$/i)).toHaveValue('Stripe API Key renamed')
+
+    blockerState.status = 'blocked'
+    view.rerender(<EntryDetailPage vaultId="vault-1" entryId="entry-1" />)
+    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: /keep editing/i }))
+    expect(blockerResetMock).toHaveBeenCalledTimes(1)
+    blockerState.status = 'idle'
+    view.rerender(<EntryDetailPage vaultId="vault-1" entryId="entry-1" />)
+
+    await user.click(screen.getByRole('button', { name: 'Cancel' }))
+    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: /^discard$/i }))
+    expect(screen.queryByLabelText(/^label$/i)).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Edit' }))
+    expect(screen.getByLabelText(/^label$/i)).toHaveValue('Stripe API Key')
   })
 
   it('makes newly added TOTP grantable when saving an existing credential', async () => {
@@ -321,7 +406,7 @@ describe('EntryDetailPage — DetailsTab', () => {
     state.memberIndex = { memberLabel: 'AWS fixture', entryType: 'credential', icon: null }
     useVaultMock.mockReturnValue({ isPending: false, isError: false, data: VAULT })
     useEntryDetailMock.mockReturnValue({ isPending: false, isError: false, data: CREDENTIAL_ENTRY })
-    render(<EntryDetailPage vaultId="vault-1" entryId="entry-2" />, { wrapper })
+    await renderEditing(<EntryDetailPage vaultId="vault-1" entryId="entry-2" />, { wrapper })
     await waitFor(() => expect(screen.getByLabelText(/^username$/i)).toHaveValue('alice'))
     await user.click(screen.getByRole('button', { name: /add 2fa/i }))
     await user.type(screen.getByLabelText(/otpauth|secret/i), 'GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ')
@@ -353,7 +438,7 @@ describe('EntryDetailPage — DetailsTab', () => {
     state.memberIndex = { memberLabel: 'AWS fixture', entryType: 'credential', icon: null }
     useVaultMock.mockReturnValue({ isPending: false, isError: false, data: VAULT })
     useEntryDetailMock.mockReturnValue({ isPending: false, isError: false, data: CREDENTIAL_ENTRY })
-    render(<EntryDetailPage vaultId="vault-1" entryId="entry-2" />, { wrapper })
+    await renderEditing(<EntryDetailPage vaultId="vault-1" entryId="entry-2" />, { wrapper })
     const toggle = await screen.findByRole('switch', { name: /allow granted agents to use 2fa/i })
     expect(toggle).toHaveAttribute('aria-checked', 'false')
     await user.click(toggle)
@@ -373,7 +458,7 @@ describe('EntryDetailPage — DetailsTab', () => {
     state.memberIndex = { memberLabel: 'AWS fixture', entryType: 'credential', icon: null }
     useVaultMock.mockReturnValue({ isPending: false, isError: false, data: VAULT })
     useEntryDetailMock.mockReturnValue({ isPending: false, isError: false, data: CREDENTIAL_ENTRY })
-    render(<EntryDetailPage vaultId="vault-1" entryId="entry-2" />, { wrapper })
+    await renderEditing(<EntryDetailPage vaultId="vault-1" entryId="entry-2" />, { wrapper })
     const toggle = await screen.findByRole('switch', { name: /allow granted agents to use 2fa/i })
     expect(toggle).toHaveAttribute('aria-checked', String(access === 'onGrantDerived'))
     await user.type(screen.getByLabelText(/^label$/i), ' renamed')
@@ -403,7 +488,7 @@ describe('EntryDetailPage — DetailsTab', () => {
     state.memberIndex = { memberLabel: 'AWS fixture', entryType: 'credential', icon: null }
     useVaultMock.mockReturnValue({ isPending: false, isError: false, data: VAULT })
     useEntryDetailMock.mockReturnValue({ isPending: false, isError: false, data: CREDENTIAL_ENTRY })
-    render(<EntryDetailPage vaultId="vault-1" entryId="entry-2" />, { wrapper })
+    await renderEditing(<EntryDetailPage vaultId="vault-1" entryId="entry-2" />, { wrapper })
     expect(await screen.findByRole('switch', { name: /allow granted agents to use 2fa/i }))
       .toHaveAttribute('aria-checked', 'false')
     await user.type(screen.getByLabelText(/^label$/i), ' renamed')
@@ -428,7 +513,7 @@ describe('EntryDetailPage — DetailsTab', () => {
     state.memberIndex = { memberLabel: 'AWS fixture', entryType: 'credential', icon: null }
     useVaultMock.mockReturnValue({ isPending: false, isError: false, data: VAULT })
     useEntryDetailMock.mockReturnValue({ isPending: false, isError: false, data: CREDENTIAL_ENTRY })
-    render(<EntryDetailPage vaultId="vault-1" entryId="entry-2" />, { wrapper })
+    await renderEditing(<EntryDetailPage vaultId="vault-1" entryId="entry-2" />, { wrapper })
     await screen.findByRole('switch', { name: /allow granted agents to use 2fa/i })
     await user.type(screen.getByLabelText(/^label$/i), ' renamed')
     await user.click(screen.getByRole('button', { name: /save changes/i }))
@@ -445,7 +530,7 @@ describe('EntryDetailPage — DetailsTab', () => {
     state.memberIndex = { memberLabel: 'GitHub', entryType: 'credential', icon: null }
     useVaultMock.mockReturnValue({ isPending: false, isError: false, data: VAULT })
     useEntryDetailMock.mockReturnValue({ isPending: false, isError: false, data: CREDENTIAL_ENTRY })
-    const { rerender } = render(<EntryDetailPage vaultId="vault-1" entryId="entry-2" />, { wrapper })
+    const { rerender } = await renderEditing(<EntryDetailPage vaultId="vault-1" entryId="entry-2" />, { wrapper })
     await waitFor(() => expect(screen.getByLabelText(/^username$/i)).toHaveValue('alice'))
     await user.click(screen.getByRole('button', { name: /add 2fa/i }))
     await user.type(screen.getByLabelText(/otpauth|secret/i), 'JBSWY3DPEHPK3PXP')
@@ -467,7 +552,7 @@ describe('EntryDetailPage — DetailsTab', () => {
     state.memberIndex = { memberLabel: 'GitHub', entryType: 'credential', icon: null }
     useVaultMock.mockReturnValue({ isPending: false, isError: false, data: VAULT })
     useEntryDetailMock.mockReturnValue({ isPending: false, isError: false, data: CREDENTIAL_ENTRY })
-    render(<EntryDetailPage vaultId="vault-1" entryId="entry-2" />, { wrapper })
+    await renderEditing(<EntryDetailPage vaultId="vault-1" entryId="entry-2" />, { wrapper })
     await waitFor(() => expect(screen.getByLabelText(/^username$/i)).toHaveValue('alice'))
     await user.clear(screen.getByLabelText(/^url$/i))
     await user.type(screen.getByLabelText(/^url$/i), 'not-a-url')
@@ -492,7 +577,7 @@ describe('EntryDetailPage — DetailsTab', () => {
     state.memberIndex = { memberLabel: 'GitHub', entryType: 'credential', icon: null }
     useVaultMock.mockReturnValue({ isPending: false, isError: false, data: VAULT })
     useEntryDetailMock.mockReturnValue({ isPending: false, isError: false, data: CREDENTIAL_ENTRY })
-    render(<EntryDetailPage vaultId="vault-1" entryId="entry-2" />, { wrapper })
+    await renderEditing(<EntryDetailPage vaultId="vault-1" entryId="entry-2" />, { wrapper })
     await waitFor(() => expect(screen.getByLabelText(/^username$/i)).toHaveValue('alice'))
     await user.click(screen.getByRole('button', { name: /add 2fa/i }))
     await user.type(screen.getByLabelText(/otpauth|secret/i), 'JBSWY3DPEHPK3PXP')
@@ -511,7 +596,7 @@ describe('EntryDetailPage — DetailsTab', () => {
     state.memberIndex = { memberLabel: 'GitHub', entryType: 'credential', icon: null }
     useVaultMock.mockReturnValue({ isPending: false, isError: false, data: VAULT })
     useEntryDetailMock.mockReturnValue({ isPending: false, isError: false, data: CREDENTIAL_ENTRY })
-    render(<EntryDetailPage vaultId="vault-1" entryId="entry-2" />, { wrapper })
+    await renderEditing(<EntryDetailPage vaultId="vault-1" entryId="entry-2" />, { wrapper })
     await waitFor(() => expect(screen.getByLabelText(/^username$/i)).toHaveValue('alice'))
     await user.click(screen.getByRole('button', { name: /add 2fa/i }))
     await user.type(screen.getByLabelText(/otpauth|secret/i), 'JBSWY3DPEHPK3PXP')
@@ -562,6 +647,9 @@ describe('EntryDetailPage — DetailsTab', () => {
     state.memberEntryAvailable = true
     state.repairIconCandidateCount = 0
     state.wideScreen = false
+    blockerState.status = 'idle'
+    blockerResetMock.mockReset()
+    blockerProceedMock.mockReset()
     state.memberIndex = { memberLabel: 'Stripe API Key', entryType: 'key', icon: null }
     useAuthStore.setState({ privateKey: null, isVaultLocked: true })
     // Default to wide-screen off so the detail body renders without the
@@ -627,7 +715,7 @@ describe('EntryDetailPage — DetailsTab', () => {
       data: KEY_ENTRY,
     })
 
-    render(<EntryDetailPage vaultId="vault-1" entryId="entry-1" />, { wrapper })
+    await renderEditing(<EntryDetailPage vaultId="vault-1" entryId="entry-1" />, { wrapper })
 
     expect(screen.getByLabelText(/^label$/i)).toHaveValue('Stripe API Key')
     await waitFor(() =>
@@ -653,7 +741,7 @@ describe('EntryDetailPage — DetailsTab', () => {
       data: CREDENTIAL_ENTRY,
     })
 
-    render(<EntryDetailPage vaultId="vault-1" entryId="entry-2" />, { wrapper })
+    await renderEditing(<EntryDetailPage vaultId="vault-1" entryId="entry-2" />, { wrapper })
 
     await waitFor(() =>
       expect(screen.getByLabelText(/^username$/i)).toHaveValue('user@example.com'),
@@ -674,15 +762,19 @@ describe('EntryDetailPage — DetailsTab', () => {
     state.repairIconCandidateCount = 1
     useVaultMock.mockReturnValue({ isPending: false, isError: false, data: VAULT })
     useEntryDetailMock.mockReturnValue({ isPending: false, isError: false, data: CREDENTIAL_ENTRY })
-    render(<EntryDetailPage vaultId="vault-1" entryId="entry-2" />, { wrapper })
+    await renderEditing(<EntryDetailPage vaultId="vault-1" entryId="entry-2" />, { wrapper })
 
     const repairButton = await screen.findByRole('button', { name: /find website icon/i })
     await waitFor(() => expect(repairButton).toBeEnabled())
     await user.type(screen.getByLabelText(/^url$/i), '/changed')
     expect(repairButton).toBeDisabled()
     expect(repairIconMutateMock).not.toHaveBeenCalled()
-    await user.click(screen.getByRole('button', { name: /discard/i }))
-    await user.click(repairButton)
+    await user.click(screen.getByRole('button', { name: 'Cancel' }))
+    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: /^discard$/i }))
+    await user.click(screen.getByRole('button', { name: 'Edit' }))
+    const freshRepairButton = await screen.findByRole('button', { name: /find website icon/i })
+    await waitFor(() => expect(freshRepairButton).toBeEnabled())
+    await user.click(freshRepairButton)
     expect(repairIconScopeMock).toHaveBeenCalledWith('vault-1', 'entry-2')
     expect(repairIconMutateMock).toHaveBeenCalledTimes(1)
   })
@@ -701,7 +793,7 @@ describe('EntryDetailPage — DetailsTab', () => {
     useVaultMock.mockReturnValue({ isPending: false, isError: false, data: VAULT })
     useEntryDetailMock.mockReturnValue({ isPending: false, isError: false, data: canonicalEntry('entry-3') })
 
-    render(<EntryDetailPage vaultId="vault-1" entryId="entry-3" />, { wrapper })
+    await renderEditing(<EntryDetailPage vaultId="vault-1" entryId="entry-3" />, { wrapper })
 
     const month = await screen.findByLabelText(/expiry month/i)
     expect(screen.getByLabelText(/cardholder name/i)).toHaveAttribute('maxlength', '256')
@@ -760,7 +852,7 @@ describe('EntryDetailPage — DetailsTab', () => {
     await act(async () => rerender(<EntryDetailPage vaultId="vault-1" entryId="entry-1" />))
     await waitFor(() => expect(screen.queryByText(/encrypted data is being refreshed/i)).not.toBeInTheDocument())
     expect(openCurrentEntryMock).toHaveBeenCalledTimes(3)
-    expect(screen.getByLabelText(/^value$/i)).toHaveValue('repaired-test-secret')
+    expect(screen.getByRole('button', { name: 'Copy key' })).toBeInTheDocument()
 
     await act(async () => rerender(<EntryDetailPage vaultId="vault-1" entryId="entry-1" />))
     expect(openCurrentEntryMock).toHaveBeenCalledTimes(3)
@@ -861,7 +953,7 @@ describe('EntryDetailPage — DetailsTab', () => {
       data: KEY_ENTRY,
     })
 
-    render(<EntryDetailPage vaultId="vault-1" entryId="entry-1" />, { wrapper })
+    await renderEditing(<EntryDetailPage vaultId="vault-1" entryId="entry-1" />, { wrapper })
 
     const saveButton = await screen.findByRole('button', { name: /save changes/i })
     expect(saveButton).toBeDisabled()
@@ -890,7 +982,7 @@ describe('EntryDetailPage — DetailsTab', () => {
     useVaultMock.mockReturnValue({ isPending: false, isError: false, data: VAULT })
     useEntryDetailMock.mockReturnValue({ isPending: false, isError: false, data: KEY_ENTRY })
 
-    render(<EntryDetailPage vaultId="vault-1" entryId="entry-1" />, { wrapper })
+    await renderEditing(<EntryDetailPage vaultId="vault-1" entryId="entry-1" />, { wrapper })
 
     expect(await screen.findByLabelText(/^url$/i)).toHaveValue('https://stripe.com')
     const labelInput = screen.getByLabelText(/^label$/i)
@@ -918,7 +1010,7 @@ describe('EntryDetailPage — DetailsTab', () => {
       options.onSuccess()
     })
 
-    render(<EntryDetailPage vaultId="vault-1" entryId="entry-1" />, { wrapper })
+    await renderEditing(<EntryDetailPage vaultId="vault-1" entryId="entry-1" />, { wrapper })
 
     await screen.findByLabelText(/^value$/i)
 
@@ -947,7 +1039,7 @@ describe('EntryDetailPage — DetailsTab', () => {
       options.onError(new Error('boom'))
     })
 
-    render(<EntryDetailPage vaultId="vault-1" entryId="entry-1" />, { wrapper })
+    await renderEditing(<EntryDetailPage vaultId="vault-1" entryId="entry-1" />, { wrapper })
 
     await screen.findByLabelText(/^value$/i)
 
@@ -959,7 +1051,7 @@ describe('EntryDetailPage — DetailsTab', () => {
     await waitFor(() => expect(toastError).toHaveBeenCalled())
   })
 
-  it('resets local edits to the server values when Discard is clicked', async () => {
+  it('resets local edits to the server values when edits are discarded', async () => {
     const user = userEvent.setup()
     unlockedAuthStore()
     state.decryptResult = { type: ENTRY_TYPE_KEY, value: 'sk_live_123' }
@@ -970,7 +1062,7 @@ describe('EntryDetailPage — DetailsTab', () => {
       data: KEY_ENTRY,
     })
 
-    render(<EntryDetailPage vaultId="vault-1" entryId="entry-1" />, { wrapper })
+    await renderEditing(<EntryDetailPage vaultId="vault-1" entryId="entry-1" />, { wrapper })
 
     await screen.findByLabelText(/^value$/i)
 
@@ -979,9 +1071,11 @@ describe('EntryDetailPage — DetailsTab', () => {
     await user.type(labelInput, 'Renamed')
     expect(labelInput).toHaveValue('Renamed')
 
-    await user.click(screen.getByRole('button', { name: /discard/i }))
+    await user.click(screen.getByRole('button', { name: 'Cancel' }))
+    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: /^discard$/i }))
+    await user.click(screen.getByRole('button', { name: 'Edit' }))
 
-    expect(labelInput).toHaveValue('Stripe API Key')
+    expect(screen.getByLabelText(/^label$/i)).toHaveValue('Stripe API Key')
   })
 
   it.each([false, true])('returns to the source list after deletion (global Entries: %s)', async (fromEntries) => {
@@ -998,7 +1092,7 @@ describe('EntryDetailPage — DetailsTab', () => {
       options.onSuccess()
     })
 
-    render(<EntryDetailPage vaultId="vault-1" entryId="entry-1" fromEntries={fromEntries} />, { wrapper })
+    await renderEditing(<EntryDetailPage vaultId="vault-1" entryId="entry-1" fromEntries={fromEntries} />, { wrapper })
 
     await user.click(screen.getByRole('button', { name: /^delete entry$/i }))
     // Confirm dialog has its own Delete Entry button.
@@ -1029,7 +1123,7 @@ describe('EntryDetailPage — DetailsTab', () => {
       options.onError(new Error('boom'))
     })
 
-    render(<EntryDetailPage vaultId="vault-1" entryId="entry-1" />, { wrapper })
+    await renderEditing(<EntryDetailPage vaultId="vault-1" entryId="entry-1" />, { wrapper })
 
     await user.click(screen.getByRole('button', { name: /^delete entry$/i }))
     const confirmButtons = await screen.findAllByRole('button', {
@@ -1046,14 +1140,14 @@ describe('EntryDetailPage — DetailsTab', () => {
     const binding: CustomField = { id: SIGN_IN_ID, label: 'Sign-in method', type: 'palladin.signin.v1',
       value: { provider: 'google', account: 'alice@example.com', entry: null } as never }
 
-    function renderCredential(fields: CustomField[] = [], policyFields: Record<string, AgentFieldAccess> = {}) {
+    async function renderCredential(fields: CustomField[] = [], policyFields: Record<string, AgentFieldAccess> = {}) {
       unlockedAuthStore()
       state.decryptResult = { type: ENTRY_TYPE_CREDENTIAL, username: 'alice', password: 'fixture-password', fields }
       state.policyFields = policyFields
       state.memberIndex = { memberLabel: 'Example', entryType: 'credential', icon: null }
       useVaultMock.mockReturnValue({ isPending: false, isError: false, data: VAULT })
       useEntryDetailMock.mockReturnValue({ isPending: false, isError: false, data: CREDENTIAL_ENTRY })
-      render(<EntryDetailPage vaultId="vault-1" entryId="entry-2" />, { wrapper })
+      await renderEditing(<EntryDetailPage vaultId="vault-1" entryId="entry-2" />, { wrapper })
     }
 
     function encodedDraft() {
@@ -1066,7 +1160,7 @@ describe('EntryDetailPage — DetailsTab', () => {
 
     it('shows an existing binding as a dedicated control, not a free-text custom field', async () => {
       const user = userEvent.setup()
-      renderCredential([binding], { [`custom:${SIGN_IN_ID}`]: 'never' })
+      await renderCredential([binding], { [`custom:${SIGN_IN_ID}`]: 'never' })
       await user.click(await screen.findByRole('button', { name: /^Edit sign-in method/ }))
       await waitFor(() => expect(screen.getByLabelText('Provider account')).toHaveValue('alice@example.com'))
       expect(screen.getByRole('button', { name: 'Google', pressed: true })).toBeVisible()
@@ -1075,7 +1169,7 @@ describe('EntryDetailPage — DetailsTab', () => {
     })
 
     it('hides the sign-in section, heading and add action when no method is configured', async () => {
-      renderCredential()
+      await renderCredential()
       await waitFor(() => expect(screen.getByLabelText(/^username$/i)).toHaveValue('alice'))
       expect(screen.queryByText('Sign-in methods')).not.toBeInTheDocument()
       expect(screen.queryByRole('region', { name: 'Sign-in methods' })).not.toBeInTheDocument()
@@ -1083,7 +1177,7 @@ describe('EntryDetailPage — DetailsTab', () => {
     })
 
     it('shows a configured method within Details, directly after the login fields', async () => {
-      renderCredential([binding])
+      await renderCredential([binding])
       const methods = await screen.findByRole('region', { name: 'Sign-in methods' })
       expect(methods).toHaveTextContent('alice@example.com')
       expect(methods).toHaveTextContent('Sign in with')
@@ -1096,7 +1190,7 @@ describe('EntryDetailPage — DetailsTab', () => {
 
     it('keeps an existing restricted binding hidden until the owner turns Discovery on', async () => {
       const user = userEvent.setup()
-      renderCredential([binding], { [`custom:${SIGN_IN_ID}`]: 'never' })
+      await renderCredential([binding], { [`custom:${SIGN_IN_ID}`]: 'never' })
       await user.click(await screen.findByRole('button', { name: /^Edit sign-in method/ }))
       const toggle = await screen.findByRole('switch', { name: 'Visible to agents' })
       expect(toggle).not.toBeChecked()
@@ -1119,7 +1213,7 @@ describe('EntryDetailPage — DetailsTab', () => {
       const second: CustomField = { ...binding, id: 'ABCDEFAB-1234-4234-8234-ABCDEFABCDEF', type: 'palladin.signin.v2',
         value: { provider: 'google', account: 'work@example.test', entry: null } as never }
       const opaque: CustomField = { ...binding, id: '12345678-1234-4234-8234-123456789012', type: 'palladin.signin.v99', value: { future: true } as never }
-      renderCredential([binding, opaque, second], { [`custom:${SIGN_IN_ID}`]: 'never', [`custom:${second.id}`]: 'discovery', [`custom:${opaque.id}`]: 'never' })
+      await renderCredential([binding, opaque, second], { [`custom:${SIGN_IN_ID}`]: 'never', [`custom:${second.id}`]: 'discovery', [`custom:${opaque.id}`]: 'never' })
       await user.click((await screen.findAllByRole('button', { name: /^Edit sign-in method/ }))[0])
       await user.click(screen.getByRole('button', { name: 'Apple', exact: true }))
       await user.click(screen.getByRole('button', { name: 'Save' }))
@@ -1137,7 +1231,7 @@ describe('EntryDetailPage — DetailsTab', () => {
 
     it('removes the binding on save', async () => {
       const user = userEvent.setup()
-      renderCredential([binding], { [`custom:${SIGN_IN_ID}`]: 'never' })
+      await renderCredential([binding], { [`custom:${SIGN_IN_ID}`]: 'never' })
       await user.click(await screen.findByRole('button', { name: /^Edit sign-in method/ }))
       await screen.findByLabelText('Provider account')
       await user.click(screen.getByRole('button', { name: 'Remove sign-in method' }))
@@ -1152,7 +1246,7 @@ describe('EntryDetailPage — DetailsTab', () => {
     it('preserves an unrecognized binding exactly on an unrelated edit', async () => {
       const user = userEvent.setup()
       const odd: CustomField = { ...binding, value: { provider: 'google', account: 'alice@example.com' } as never }
-      renderCredential([odd], { [`custom:${SIGN_IN_ID}`]: 'never' })
+      await renderCredential([odd], { [`custom:${SIGN_IN_ID}`]: 'never' })
       await screen.findByText('Unsupported field, kept unchanged')
       await user.type(screen.getByLabelText(/^label$/i), ' renamed')
       await user.click(screen.getByRole('button', { name: /save changes/i }))
@@ -1164,7 +1258,7 @@ describe('EntryDetailPage — DetailsTab', () => {
     it('keeps the edited binding and reports an error when saving fails', async () => {
       updateMutateMock.mockImplementation((_input, options) => options.onError())
       const user = userEvent.setup()
-      renderCredential([binding], { [`custom:${SIGN_IN_ID}`]: 'never' })
+      await renderCredential([binding], { [`custom:${SIGN_IN_ID}`]: 'never' })
       await user.click(await screen.findByRole('button', { name: /^Edit sign-in method/ }))
       await screen.findByLabelText('Provider account')
       await user.click(screen.getByRole('button', { name: 'Apple', exact: true }))
@@ -1178,10 +1272,10 @@ describe('EntryDetailPage — DetailsTab', () => {
 
     it('saves a Credential with empty username and password when it has one recognized binding', async () => {
       const user = userEvent.setup()
-      renderCredential([binding], { [`custom:${SIGN_IN_ID}`]: 'never' })
+      await renderCredential([binding], { [`custom:${SIGN_IN_ID}`]: 'never' })
       await user.click(await screen.findByRole('button', { name: /^Edit sign-in method/ }))
       await screen.findByLabelText('Provider account')
-      if (screen.queryByRole('button', { name: 'Cancel' })) await user.click(screen.getByRole('button', { name: 'Cancel' }))
+      await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Cancel' }))
       await user.clear(screen.getByLabelText(/^username$/i))
       await user.clear(screen.getByLabelText(/^password$/i))
       await user.click(screen.getByRole('button', { name: /save changes/i }))
@@ -1198,7 +1292,7 @@ describe('EntryDetailPage — DetailsTab', () => {
       ['a retired two-key binding', [{ ...binding, value: { provider: 'google', account: 'alice@example.com' } as never }]],
     ])('still requires username and password with %s', async (_, fields) => {
       const user = userEvent.setup()
-      renderCredential(fields as CustomField[], Object.fromEntries(
+      await renderCredential(fields as CustomField[], Object.fromEntries(
         (fields as CustomField[]).map((field) => [`custom:${field.id}`, 'never' as const])))
       await waitFor(() => expect(screen.getByLabelText(/^username$/i)).toHaveValue('alice'))
       await user.clear(screen.getByLabelText(/^username$/i))
@@ -1217,7 +1311,7 @@ describe('EntryDetailPage — DetailsTab', () => {
       state.policyFields = { [`custom:${SIGN_IN_ID}`]: 'never' }
       useVaultMock.mockReturnValue({ isPending: false, isError: false, data: VAULT })
       useEntryDetailMock.mockReturnValue({ isPending: false, isError: false, data: KEY_ENTRY })
-      render(<EntryDetailPage vaultId="vault-1" entryId="entry-1" />, { wrapper })
+      await renderEditing(<EntryDetailPage vaultId="vault-1" entryId="entry-1" />, { wrapper })
       await waitFor(() => expect(screen.getByLabelText(/^value$/i)).toHaveValue('sk-live'))
       expect(screen.queryByLabelText('Provider')).not.toBeInTheDocument()
       await user.clear(screen.getByLabelText(/^value$/i))

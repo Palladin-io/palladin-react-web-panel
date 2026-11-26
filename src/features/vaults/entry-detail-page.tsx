@@ -1,7 +1,7 @@
 import { DangerZone } from '../../shared/components/danger-zone'
 import { DETAIL_SURFACE_CLASSES } from '../../shared/lib/styles'
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { useNavigate } from '@tanstack/react-router'
+import { useBlocker, useNavigate } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { Button } from '../../shared/components/button'
@@ -92,6 +92,7 @@ import { validateScriptRefs } from './script-refs'
 import { ScriptParametersEditor } from './components/script-parameters-editor'
 import { ScriptResultToggle } from './components/script-result-toggle'
 import { SectionHeader } from './components/section-header'
+import { EntryReadView } from './components/entry-read-view'
 import { discoveryAction } from './components/discovery-toggle'
 import { useDeleteEntry } from './use-delete-entry'
 import {
@@ -287,6 +288,8 @@ function DetailBody({
   hideHeader = false,
 }: DetailBodyProps) {
   const { t } = useTranslation()
+  const [editingDirty, setEditingDirty] = useState(false)
+  const [pendingTab, setPendingTab] = useState<EntryDetailTab | null>(null)
 
   // Active-agent count for the header. Reuses the same (deduped) org-grants query
   // the embedded Agents-tab panel runs, gated on GrantManage so users without it
@@ -308,6 +311,10 @@ function DetailBody({
   ].join(' · ')
 
   const handleTabChange = (next: EntryDetailTab) => {
+    if (next !== activeTab && editingDirty) {
+      setPendingTab(next)
+      return
+    }
     if (next !== activeTab) {
       analytics.capture('entry', 'detail-tab-switched', {
         type: entry.type === ENTRY_TYPE_KEY
@@ -364,8 +371,19 @@ function DetailBody({
           entry={entry}
           loadCanonical={loadCanonical}
           onDeleted={onDeleted}
+          onDirtyChange={setEditingDirty}
         />
       ) : null}
+      <DiscardChangesDialog
+        open={pendingTab !== null}
+        onKeepEditing={() => setPendingTab(null)}
+        onDiscard={() => {
+          const next = pendingTab
+          setPendingTab(null)
+          setEditingDirty(false)
+          if (next) onTabChange(next)
+        }}
+      />
       {activeTab === 'agents' && canonical ? (
         <EntryAgentsTab
           key={`${entry.id}:${canonical.currentRevision}`}
@@ -429,10 +447,13 @@ interface DetailsTabProps {
   entry: CurrentEntryView
   loadCanonical: () => Promise<CanonicalEntryDetail>
   onDeleted: () => void
+  onDirtyChange: (dirty: boolean) => void
 }
 
-function DetailsTab({ vault, entry, loadCanonical, onDeleted }: DetailsTabProps) {
+function DetailsTab({ vault, entry, loadCanonical, onDeleted, onDirtyChange }: DetailsTabProps) {
   const { t } = useTranslation()
+  const [editing, setEditing] = useState(false)
+  const [confirmDiscard, setConfirmDiscard] = useState(false)
   const permissions = useAuthStore((state) => state.permissions)
   const update = useUpdateCanonicalEntry(vault.id, entry.id)
   const remove = useDeleteEntry(vault.id)
@@ -680,6 +701,27 @@ function DetailsTab({ vault, entry, loadCanonical, onDeleted }: DetailsTabProps)
   }, [label, description, icon, color, defaultColor, entry, originalSecret, policy])
 
   const hasChanges = metadataChanged || contentChanged
+  const unsavedEdits = editing && hasChanges
+
+  useEffect(() => {
+    onDirtyChange(unsavedEdits)
+    return () => onDirtyChange(false)
+  }, [unsavedEdits, onDirtyChange])
+
+  const navigationBlocker = useBlocker({
+    shouldBlockFn: () => unsavedEdits,
+    enableBeforeUnload: () => unsavedEdits,
+    withResolver: true,
+  })
+
+  const leaveEditing = () => {
+    handleDiscard()
+    setEditing(false)
+  }
+  const handleCancelEdit = () => {
+    if (hasChanges) setConfirmDiscard(true)
+    else leaveEditing()
+  }
 
   const handleRepairIcon = () => {
     if (hasChanges || isSaving || !originalSecret || repairIcon.candidateCount !== 1) return
@@ -779,6 +821,17 @@ function DetailsTab({ vault, entry, loadCanonical, onDeleted }: DetailsTabProps)
       onSuccess: () => {
         toast.success(t('vault.entry.detail.saveSuccess'))
         setOriginalPlaintext(current)
+        // The read view renders this snapshot; the sync store may publish the new revision later.
+        setOriginalSecret({
+          ...originalSecret,
+          memberLabel: label.trim(),
+          agentLabel: label.trim(),
+          description: description.trim() || undefined,
+          iconReference,
+          content: current,
+          agentVisibilityPolicy: nextPolicy,
+        })
+        setEditing(false)
         setPendingScriptSave(null)
         setScriptImpact(null)
       },
@@ -897,6 +950,46 @@ function DetailsTab({ vault, entry, loadCanonical, onDeleted }: DetailsTabProps)
     })
   }
 
+  const discardDialog = (
+    <DiscardChangesDialog
+      open={confirmDiscard || navigationBlocker.status === 'blocked'}
+      onKeepEditing={() => {
+        setConfirmDiscard(false)
+        if (navigationBlocker.status === 'blocked') navigationBlocker.reset()
+      }}
+      onDiscard={() => {
+        setConfirmDiscard(false)
+        if (navigationBlocker.status === 'blocked') navigationBlocker.proceed()
+        else leaveEditing()
+      }}
+    />
+  )
+
+  if (!editing && !decryptError) {
+    if (!originalSecret) return <PageSkeleton />
+    return (
+      <>
+        <EntryReadView
+          vaultId={vault.id}
+          vaultName={vault.name}
+          entryType={entry.type}
+          icon={icon}
+          color={entry.color}
+          secret={originalSecret}
+          onEdit={() => setEditing(true)}
+          footer={<EntryDangerZone onDelete={() => setShowDelete(true)} disabled={isRemoving} />}
+        />
+        <DeleteEntryDialog
+          open={showDelete}
+          entryLabel={entry.label}
+          isPending={isRemoving}
+          onConfirm={handleDelete}
+          onCancel={() => setShowDelete(false)}
+        />
+      </>
+    )
+  }
+
   return (
     <>
       <div
@@ -980,15 +1073,28 @@ function DetailsTab({ vault, entry, loadCanonical, onDeleted }: DetailsTabProps)
                 <FormInput
                   id="entry-detail-url"
                   label={t('vault.entries.urlLabel')}
-                  trailingActions={entry.type === ENTRY_TYPE_CREDENTIAL && policy ? [discoveryAction(
-                    policy.fields[ENTRY_FIELD.urlDomain] === 'discovery',
-                    isSaving || !policy.discoverable,
-                    (active) => setPolicy({
-                      ...policy,
-                      fields: { ...policy.fields, [ENTRY_FIELD.urlDomain]: active ? 'discovery' : 'never' },
-                    }),
-                    t,
-                  )] : undefined}
+                  trailingActions={entry.type === ENTRY_TYPE_CREDENTIAL ? [
+                    {
+                      icon: 'image_search',
+                      label: repairIcon.isPending
+                        ? t('vault.entry.detail.repairIconPending')
+                        : t('vault.entry.detail.repairIcon'),
+                      onClick: handleRepairIcon,
+                      disabled: !originalSecret || hasChanges || isSaving || repairIcon.isPending,
+                      show: (permissions & PERMISSION_VAULT_MANAGE) !== 0
+                        && repairIcon.candidateCount === 1
+                        && !originalSecret?.iconReference,
+                    },
+                    ...(policy ? [discoveryAction(
+                      policy.fields[ENTRY_FIELD.urlDomain] === 'discovery',
+                      isSaving || !policy.discoverable,
+                      (active) => setPolicy({
+                        ...policy,
+                        fields: { ...policy.fields, [ENTRY_FIELD.urlDomain]: active ? 'discovery' : 'never' },
+                      }),
+                      t,
+                    )] : []),
+                  ] : undefined}
                   value={url}
                   onChange={(e) => { setUrl(e.target.value); setUrlError(false) }}
                   onBlur={() =>
@@ -1010,23 +1116,6 @@ function DetailsTab({ vault, entry, loadCanonical, onDeleted }: DetailsTabProps)
                 <FeedbackSlot visible={urlError} color="red">
                   {t('validation.invalidUrl')}
                 </FeedbackSlot>
-                {entry.type === ENTRY_TYPE_CREDENTIAL
-                  && (permissions & PERMISSION_VAULT_MANAGE) !== 0
-                  && repairIcon.candidateCount === 1
-                  && !originalSecret?.iconReference ? (
-                    <Button
-                      variant="subtle"
-                      size="sm"
-                      icon="image_search"
-                      onClick={handleRepairIcon}
-                      disabled={!originalSecret || hasChanges || isSaving || repairIcon.isPending}
-                      className="mt-2"
-                    >
-                      {repairIcon.isPending
-                        ? t('vault.entry.detail.repairIconPending')
-                        : t('vault.entry.detail.repairIcon')}
-                    </Button>
-                  ) : null}
               </div>
             ) : null}
             {decryptError ? (
@@ -1281,8 +1370,8 @@ function DetailsTab({ vault, entry, loadCanonical, onDeleted }: DetailsTabProps)
           <EntryShareAction scope={{ organizationId: vault.organizationId, vaultId: vault.id, entryId: entry.id,
             revision: entry.currentRevision, keyVersion: entry.currentKeyVersion }} footer />
           <div className="flex items-center gap-2">
-            <Button variant="subtle" size="sm" onClick={handleDiscard} disabled={isSaving || !hasChanges}>
-              {t('vault.entry.detail.discard')}
+            <Button variant="subtle" size="sm" onClick={handleCancelEdit} disabled={isSaving || !!decryptError}>
+              {t('vault.cancel')}
             </Button>
             <Button variant="accent" size="sm" onClick={() => { void handleSave() }}
               disabled={isSaving || !originalSecret || !hasChanges || fieldsInvalid || scriptContractInvalid}>
@@ -1314,7 +1403,36 @@ function DetailsTab({ vault, entry, loadCanonical, onDeleted }: DetailsTabProps)
         onCancel={() => { setScriptImpact(null); setPendingScriptSave(null) }}
         onConfirm={() => { if (pendingScriptSave) submitUpdate(pendingScriptSave) }}
       />
+      {discardDialog}
     </>
+  )
+}
+
+function DiscardChangesDialog({ open, onKeepEditing, onDiscard }: {
+  open: boolean
+  onKeepEditing: () => void
+  onDiscard: () => void
+}) {
+  const { t } = useTranslation()
+  if (!open) return null
+  return (
+    <ModalShell
+      onClose={onKeepEditing}
+      ariaLabel={t('vault.entry.detail.discardTitle')}
+      title={t('vault.entry.detail.discardTitle')}
+      footer={
+        <DialogFooter>
+          <Button variant="subtle" size="sm" onClick={onKeepEditing} className="flex-1">
+            {t('vault.entry.detail.keepEditing')}
+          </Button>
+          <Button variant="danger" size="sm" onClick={onDiscard} className="flex-[2]">
+            {t('vault.entry.detail.discard')}
+          </Button>
+        </DialogFooter>
+      }
+    >
+      <p className="text-ui text-[var(--cv-t2)]">{t('vault.entry.detail.discardBody')}</p>
+    </ModalShell>
   )
 }
 

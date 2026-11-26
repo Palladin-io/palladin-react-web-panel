@@ -68,13 +68,15 @@ export function SignInMethodField({ fields, onChange, disabled, entryId, agentVi
         <AddButton label={t('vault.entries.signInMethod.add')} disabled={disabled}
           onClick={() => setEditing({ fieldId: null, binding: { provider: 'google', account: null, entry: null }, visible: agentVisibility?.newMethodVisible ?? false })} />
       </div>}
-      {methods.length > 0 ? <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+      {methods.length > 0 ? <div className={inline ? 'grid grid-cols-1 gap-2' : 'grid grid-cols-1 gap-2 sm:grid-cols-2'}>
         {methods.map((method) => inline ? <div key={method.fieldId}
           className="flex min-w-0 items-center gap-3 rounded-lg border border-[var(--cv-input-border)] p-3">
           <div className="min-w-0 flex-1">
-            <div className="truncate text-meta text-[var(--cv-t3)]">{t('vault.entries.signInMethod.signInWith')}</div>
-            <Tooltip content={method.binding.account ?? t(`vault.entries.signInMethod.providers.${method.binding.provider}`)} className="block truncate text-ui font-medium text-[var(--cv-t1)]">
-              {method.binding.account ?? t(`vault.entries.signInMethod.providers.${method.binding.provider}`)}
+            <div className="truncate text-meta text-[var(--cv-t3)]">{t('vault.entries.signInMethod.signInWithProvider', {
+              provider: t(`vault.entries.signInMethod.providers.${method.binding.provider}`),
+            })}</div>
+            <Tooltip content={method.binding.account ?? t('vault.entries.signInMethod.accountNotSpecified')} className="block truncate text-ui font-medium text-[var(--cv-t1)]">
+              {method.binding.account ?? t('vault.entries.signInMethod.accountNotSpecified')}
             </Tooltip>
           </div>
           <button type="button" disabled={disabled}

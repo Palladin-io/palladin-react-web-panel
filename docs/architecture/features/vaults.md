@@ -57,6 +57,20 @@ Entry Sharing lists each link as a compact, responsive table row with recipient,
 
 ## Key patterns
 
+### Entry Details: read-only first, explicit edit
+
+The Details tab opens in `components/entry-read-view.tsx` after the in-memory
+decrypt: an identity card (icon, name, Vault, type, *Open website* when a URL
+exists, *Edit*) and shadowless cards of label/value rows. Secrets stay masked
+until revealed (cards show `•••• {last4}`), copy uses the auto-clearing secret
+path, empty fields are hidden, 2FA is a regular row with a countdown, notes over
+six lines collapse behind *Show all*, and Script rows show the code, injected
+Vault data, parameters and result return. Agent-visibility controls appear only
+in edit mode. *Edit* mounts the existing form; *Cancel* or a successful save
+returns to the read view. Unsaved edits ask for confirmation on Cancel, tab
+switch and router navigation. A decrypt failure shows the existing banner.
+The URL field carries *Find website icon* as a trailing action.
+
 ### Global Entries
 
 Global Entries and the per-Vault split panel share `EntryNavigationRow` and
@@ -139,9 +153,11 @@ canonical Discovery projection. Provider Entry references use lowercase UUIDs;
 custom method IDs retain their existing hexadecimal case.
 
 `SignInMethodField` appears last after Notes in the create form, with a heading
-and `AddButton`. Entry Details renders it `inline` directly after the username and
-password: nothing when no method exists, otherwise "Sign in with" cards (account,
-provider logo at the end opening the editor) with no heading or add action. The modal
+and `AddButton`. In edit mode Entry Details renders it `inline` directly after the username and
+password: nothing when no method exists, otherwise full-width "Sign in with {provider}" cards
+(account, provider logo at the end opening the editor) with no heading or add action. The
+read-only `EntryReadView` shows each method as a "Sign in with {provider}" row with the
+account and the provider logo, without a copy action. The modal
 uses provider-logo tiles, explicit local provider-account rows and a manual/unspecified
 option, with shared controls, `ModalShell` and `DialogFooter`. The safe initial
 Google provider never selects a linked account. Account/provider changes
