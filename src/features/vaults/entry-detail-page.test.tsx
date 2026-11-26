@@ -8,7 +8,7 @@ import { EntryDetailPage } from './entry-detail-page'
 import { ENTRY_TYPE_CREDENTIAL, ENTRY_TYPE_CREDIT_CARD, ENTRY_TYPE_KEY, type Vault } from './types'
 import type { CustomField } from './types'
 import { toMemberSecret } from '../../shared/crypto/entry-draft'
-import { encodeMemberSecret, projectAgentDiscovery } from '../../shared/crypto/vault-plaintext'
+import { encodeMemberSecret } from '../../shared/crypto/vault-plaintext'
 import { listGrantableFields, projectCanonicalGrantPayloadV2 } from '@palladin/crypto'
 import type { AgentFieldAccess } from '../../shared/crypto/entry-draft'
 import type { CanonicalEntryDetail } from './api/vault-api'
@@ -1067,40 +1067,37 @@ describe('EntryDetailPage — DetailsTab', () => {
     it('shows an existing binding as a dedicated control, not a free-text custom field', async () => {
       const user = userEvent.setup()
       renderCredential([binding], { [`custom:${SIGN_IN_ID}`]: 'never' })
-      await user.click(await screen.findByRole('button', { name: 'Edit sign-in method' }))
+      await user.click(await screen.findByRole('button', { name: /^Edit sign-in method/ }))
       await waitFor(() => expect(screen.getByLabelText('Provider account')).toHaveValue('alice@example.com'))
       expect(screen.getByRole('button', { name: 'Google', pressed: true })).toBeVisible()
       expect(screen.queryByText('Unsupported field, kept unchanged')).not.toBeInTheDocument()
       expect(screen.queryByRole('textbox', { name: /field label/i })).not.toBeInTheDocument()
     })
 
-    it('adds a binding visible in Discovery, never grantable, and saves it through the canonical encoder', async () => {
-      const user = userEvent.setup()
+    it('hides the sign-in section, heading and add action when no method is configured', async () => {
       renderCredential()
       await waitFor(() => expect(screen.getByLabelText(/^username$/i)).toHaveValue('alice'))
-      await user.click(screen.getByRole('button', { name: 'Add sign-in method' }))
-      await user.click(screen.getByRole('button', { name: 'GitHub', exact: true }))
-      await user.type(screen.getByLabelText('Provider account'), ' octocat ')
-      await user.click(screen.getByRole('button', { name: 'Save' }))
-      await user.click(screen.getByRole('button', { name: /save changes/i }))
+      expect(screen.queryByText('Sign-in methods')).not.toBeInTheDocument()
+      expect(screen.queryByRole('region', { name: 'Sign-in methods' })).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'Add sign-in method' })).not.toBeInTheDocument()
+    })
 
-      await waitFor(() => expect(updateMutateMock).toHaveBeenCalledTimes(1))
-      const { draft, secret } = encodedDraft()
-      expect(draft.content.fields).toEqual([expect.objectContaining({
-        label: 'Sign-in methods', type: 'palladin.signin.v2', value: { provider: 'github', account: 'octocat', entry: null },
-      })])
-      const fieldId = `custom:${draft.content.fields[0].id}`
-      expect(secret.agentFieldAccess[fieldId]).toBe('discovery')
-      expect(listGrantableFields(secret).map(({ id }) => id)).not.toContain(fieldId)
-      const discovery = projectAgentDiscovery(secret)
-      expect(JSON.parse(discovery!.fields.find(({ id }) => id === 'signInMethods')!.value)).toEqual({ schema: 'palladin.signin.v2', methods: [{ id: fieldId, provider: 'github', entry: null }] })
-      expect(JSON.stringify(discovery)).not.toContain('octocat')
+    it('shows a configured method within Details, directly after the login fields', async () => {
+      renderCredential([binding])
+      const methods = await screen.findByRole('region', { name: 'Sign-in methods' })
+      expect(methods).toHaveTextContent('alice@example.com')
+      expect(methods).toHaveTextContent('Sign in with')
+      expect(screen.getByRole('button', { name: 'Edit sign-in method: Google' })).toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'Add sign-in method' })).not.toBeInTheDocument()
+      const password = screen.getByLabelText(/^password$/i)
+      expect(password.compareDocumentPosition(methods) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+      expect(methods.compareDocumentPosition(screen.getByText(/^two-factor/i)) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     })
 
     it('keeps an existing restricted binding hidden until the owner turns Discovery on', async () => {
       const user = userEvent.setup()
       renderCredential([binding], { [`custom:${SIGN_IN_ID}`]: 'never' })
-      await user.click(await screen.findByRole('button', { name: 'Edit sign-in method' }))
+      await user.click(await screen.findByRole('button', { name: /^Edit sign-in method/ }))
       const toggle = await screen.findByRole('switch', { name: 'Visible to agents' })
       expect(toggle).not.toBeChecked()
       await user.click(screen.getByRole('button', { name: 'Apple', exact: true }))
@@ -1109,7 +1106,7 @@ describe('EntryDetailPage — DetailsTab', () => {
       await waitFor(() => expect(updateMutateMock).toHaveBeenCalledTimes(1))
       expect(encodedDraft().secret.agentFieldAccess[`custom:${SIGN_IN_ID}`]).toBe('never')
 
-      await user.click(screen.getByRole('button', { name: 'Edit sign-in method' }))
+      await user.click(screen.getByRole('button', { name: /^Edit sign-in method/ }))
       await user.click(screen.getByRole('switch', { name: 'Visible to agents' }))
       await user.click(screen.getByRole('button', { name: 'Save' }))
       await user.click(screen.getByRole('button', { name: /save changes/i }))
@@ -1123,7 +1120,7 @@ describe('EntryDetailPage — DetailsTab', () => {
         value: { provider: 'google', account: 'work@example.test', entry: null } as never }
       const opaque: CustomField = { ...binding, id: '12345678-1234-4234-8234-123456789012', type: 'palladin.signin.v99', value: { future: true } as never }
       renderCredential([binding, opaque, second], { [`custom:${SIGN_IN_ID}`]: 'never', [`custom:${second.id}`]: 'discovery', [`custom:${opaque.id}`]: 'never' })
-      await user.click((await screen.findAllByRole('button', { name: 'Edit sign-in method' }))[0])
+      await user.click((await screen.findAllByRole('button', { name: /^Edit sign-in method/ }))[0])
       await user.click(screen.getByRole('button', { name: 'Apple', exact: true }))
       await user.click(screen.getByRole('button', { name: 'Save' }))
       await user.clear(screen.getByLabelText(/^username$/i))
@@ -1141,7 +1138,7 @@ describe('EntryDetailPage — DetailsTab', () => {
     it('removes the binding on save', async () => {
       const user = userEvent.setup()
       renderCredential([binding], { [`custom:${SIGN_IN_ID}`]: 'never' })
-      await user.click(await screen.findByRole('button', { name: 'Edit sign-in method' }))
+      await user.click(await screen.findByRole('button', { name: /^Edit sign-in method/ }))
       await screen.findByLabelText('Provider account')
       await user.click(screen.getByRole('button', { name: 'Remove sign-in method' }))
       await user.click(screen.getByRole('button', { name: /save changes/i }))
@@ -1168,21 +1165,21 @@ describe('EntryDetailPage — DetailsTab', () => {
       updateMutateMock.mockImplementation((_input, options) => options.onError())
       const user = userEvent.setup()
       renderCredential([binding], { [`custom:${SIGN_IN_ID}`]: 'never' })
-      await user.click(await screen.findByRole('button', { name: 'Edit sign-in method' }))
+      await user.click(await screen.findByRole('button', { name: /^Edit sign-in method/ }))
       await screen.findByLabelText('Provider account')
       await user.click(screen.getByRole('button', { name: 'Apple', exact: true }))
       await user.click(screen.getByRole('button', { name: 'Save' }))
       await user.click(screen.getByRole('button', { name: /save changes/i }))
 
       await waitFor(() => expect(toastError).toHaveBeenCalled())
-      expect(screen.getByText('Apple')).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Edit sign-in method: Apple' })).toBeInTheDocument()
       expect(screen.getByRole('button', { name: /save changes/i })).toBeEnabled()
     })
 
     it('saves a Credential with empty username and password when it has one recognized binding', async () => {
       const user = userEvent.setup()
       renderCredential([binding], { [`custom:${SIGN_IN_ID}`]: 'never' })
-      await user.click(await screen.findByRole('button', { name: 'Edit sign-in method' }))
+      await user.click(await screen.findByRole('button', { name: /^Edit sign-in method/ }))
       await screen.findByLabelText('Provider account')
       if (screen.queryByRole('button', { name: 'Cancel' })) await user.click(screen.getByRole('button', { name: 'Cancel' }))
       await user.clear(screen.getByLabelText(/^username$/i))

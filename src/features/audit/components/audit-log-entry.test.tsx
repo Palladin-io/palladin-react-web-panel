@@ -1,6 +1,7 @@
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import { AuditLogEntry } from './audit-log-entry'
+import { middleEllipsis } from '../../../shared/lib/middle-ellipsis'
 import type { AuditLogItem } from '../api/audit-api'
 
 // The sentence renders names in their own bold <span>s, so the text spans
@@ -259,5 +260,40 @@ describe('AuditLogEntry', () => {
   it('omits the vault chip when the name is unknown even with showVault', () => {
     render(<AuditLogEntry item={item({ vaultId: 'vault-1' })} agentName="copilot" showVault />)
     expect(screen.queryByText('vault-1')).not.toBeInTheDocument()
+  })
+})
+
+describe('AuditLogEntry entry identity chip', () => {
+  it('shows the login next to the Entry name and marks a login changed after the event', () => {
+    const { rerender } = render(<AuditLogEntry item={item({})} entryName="X" entryAvailable entryLogin={{ login: 'synthetic_one', current: false }} />)
+    expect(screen.getByText('synthetic_one')).toBeInTheDocument()
+    rerender(<AuditLogEntry item={item({})} entryName="X" entryAvailable entryLogin={{ login: 'synthetic_two', current: true }} />)
+    expect(screen.getByText('synthetic_two (current)')).toBeInTheDocument()
+  })
+
+  it('renders an unavailable Entry without inventing a name or login', () => {
+    render(<AuditLogEntry item={item({ entryId: '55555555-5555-4555-8555-555555555555' })} entryName="55555555…555555" entryAvailable={false} />)
+    expect(screen.getByText('Unavailable entry · 55555555…555555')).toBeInTheDocument()
+  })
+})
+
+describe('AuditLogEntry shortened chips', () => {
+  it('keeps the full login reachable by keyboard and screen readers', () => {
+    const login = 'marek.demo.with.a.very.long.mailbox.name@regional-subsidiary.example.com'
+    render(<AuditLogEntry item={item({})} entryName="X" entryAvailable entryLogin={{ login, current: true }} />)
+    expect(screen.getByText(`${login} (current)`)).toHaveClass('sr-only')
+    const trigger = screen.getByText(middleEllipsis(login) + ' (current)').parentElement!
+    expect(trigger).toHaveAttribute('tabindex', '0')
+  })
+})
+
+describe('middleEllipsis', () => {
+  it('keeps both ends of a long Entry name or login and leaves short values intact', () => {
+    const value = 'marek.demo.with.a.very.long.mailbox.name@regional-subsidiary.example.com'
+    const shortened = middleEllipsis(value)
+    expect([...shortened]).toHaveLength(32)
+    expect(shortened.startsWith('marek.demo.with.a.v')).toBe(true)
+    expect(shortened.endsWith('.example.com')).toBe(true)
+    expect(middleEllipsis('@anna.demo')).toBe('@anna.demo')
   })
 })

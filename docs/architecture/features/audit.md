@@ -11,6 +11,7 @@ A paginated log list with a filter bar above it. Filtering is **server-side** (e
 ## Key patterns
 - Server-side filter params + client-side text search over loaded pages; cursor pagination.
 - Opaque entry IDs resolve from `member-sync-store`; lock clears the resolver source and no plaintext is persisted by Audit.
+- The Entry chip and a separate login chip resolve from the exact `entryId`, so same-domain Entries stay distinguishable; unresolved Entries show `Unavailable entry · prefix…suffix`. The login is the Entry's current login; the audit record holds only the opaque Entry ID, so when the Entry changed after the event the login is marked current rather than presented as the login used then.
 - User actor IDs resolve from the shared, organization-scoped in-memory directory documented in `../member-directory.md`. Missing visible IDs cause one whole-directory repair refetch, never per-row requests; unresolved actors use shortened prefix-and-suffix IDs.
 - `useAuditLogPresentation` is the public presentation boundary. It composes authorized Agent/Member names with local Vault/Entry labels and is passed whole to the required `AuditLogList.presentation` prop. Never select individual resolver props at a call site; extending the presentation model must update every Audit Log surface automatically.
 - `useAuditAgentNames` and `useOrgAuditResourceNames` are internal inputs to that presentation model.

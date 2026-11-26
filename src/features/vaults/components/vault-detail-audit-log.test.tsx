@@ -68,6 +68,8 @@ beforeEach(() => {
       agentNameById: { 'agent-1': 'github-copilot' },
       memberNameById: { 'user-1': 'Patryk Roguszewski' },
       entryNameById,
+      availableEntryIds: new Set(Object.keys(entryNameById)),
+      resolveEntryLogin: () => undefined,
       vaultNameById: {},
       resolveAgentName,
       resolveActorName: (item: AuditLogItem) => item.userId === 'user-1'
@@ -174,6 +176,7 @@ describe('VaultDetailAuditLog', () => {
     })
 
     render(<VaultDetailAuditLog vaultId="vault-1" />)
-    expect(screen.getAllByText('33333333…333333')).toHaveLength(2)
+    expect(screen.getByText('33333333…333333')).toBeInTheDocument()
+    expect(screen.getByText('Unavailable entry · 33333333…333333')).toBeInTheDocument()
   })
 })

@@ -3,9 +3,12 @@ import { Fragment, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { TFunction } from 'i18next'
 import { Icon } from '../../../shared/components/icon'
+import { Tooltip } from '../../../shared/components/tooltip'
 import { shortenKey } from '../../../shared/lib/shorten-key'
+import { middleEllipsis } from '../../../shared/lib/middle-ellipsis'
 import type { AuditLogItem } from '../api/audit-api'
 import { auditEventConfig } from './audit-event-config'
+import type { AuditEntryLogin } from '../use-org-audit-resource-names'
 
 export interface AuditLogEntryProps {
   item: AuditLogItem
@@ -15,6 +18,10 @@ export interface AuditLogEntryProps {
   actorName?: string
   /** Entry display label resolved from the unlocked client-side member index. */
   entryName?: string
+  /** False when the Entry is locked, deleted or no longer readable by this member. */
+  entryAvailable?: boolean
+  /** Login decrypted from the same Entry ID; never sent to or stored by the backend. */
+  entryLogin?: AuditEntryLogin
   /** Vault display name resolved by the caller — drives the vault chip. */
   vaultName?: string
   /** Show the entry chip — off on the Entry Logs tab where the entry is fixed. */
@@ -39,6 +46,8 @@ export function AuditLogEntry({
   agentName,
   actorName,
   entryName,
+  entryAvailable,
+  entryLogin,
   vaultName,
   showEntry = true,
   showVault = false,
@@ -80,6 +89,8 @@ export function AuditLogEntry({
   const chips = buildChips(item, t, cfg.labelKey, cfg.color, {
     showEntry,
     entryName: entryName ?? (item.entryId ? shortenKey(item.entryId) : undefined),
+    entryAvailable,
+    entryLogin,
     vaultName: showVault ? vaultName : undefined,
   })
 
@@ -113,7 +124,14 @@ export function AuditLogEntry({
           {chips.map((chip, i) => (
             <MetadataBadge key={i} color={chip.color}>
               {chip.icon ? <Icon name={chip.icon} size={11} /> : null}
-              {chip.text}
+              {chip.full ? (
+                <Tooltip content={chip.full} always>
+                  <span tabIndex={0} className="rounded-sm focus-visible:outline focus-visible:outline-1">
+                    <span aria-hidden="true">{chip.text}</span>
+                    <span className="sr-only">{chip.fullLabel ?? chip.full}</span>
+                  </span>
+                </Tooltip>
+              ) : chip.text}
             </MetadataBadge>
           ))}
         </div>
@@ -125,7 +143,16 @@ export function AuditLogEntry({
 interface Chip {
   icon?: string
   text: string
+  /** Full value shown on hover/focus when `text` was shortened. */
+  full?: string
+  /** Full accessible chip text when it differs from `full` (e.g. a "current" suffix). */
+  fullLabel?: string
   color?: string
+}
+
+function fitted(value: string): Pick<Chip, 'text' | 'full'> {
+  const text = middleEllipsis(value)
+  return text === value ? { text } : { text, full: value }
 }
 
 function buildChips(
@@ -133,14 +160,30 @@ function buildChips(
   t: TFunction,
   typeLabelKey: string,
   typeColor: string,
-  options: { showEntry: boolean; entryName?: string; vaultName?: string },
+  options: { showEntry: boolean; entryName?: string; entryAvailable?: boolean; entryLogin?: AuditEntryLogin; vaultName?: string },
 ): Chip[] {
   const chips: Chip[] = [
     { text: t(typeLabelKey), color: typeColor },
   ]
 
   if (options.showEntry && item.entryId && options.entryName) {
-    chips.push({ icon: 'article', text: options.entryName })
+    chips.push({
+      icon: 'article',
+      ...(options.entryAvailable === false
+        ? { text: t('audit.entryUnavailable', { id: shortenKey(item.entryId) }) }
+        : fitted(options.entryName)),
+    })
+    if (options.entryLogin) {
+      const login = fitted(options.entryLogin.login)
+      chips.push({
+        icon: 'person',
+        text: t(options.entryLogin.current ? 'audit.entryLoginCurrent' : 'audit.entryLogin', { login: login.text }),
+        ...(login.full ? {
+          full: options.entryLogin.login,
+          fullLabel: t(options.entryLogin.current ? 'audit.entryLoginCurrent' : 'audit.entryLogin', { login: options.entryLogin.login }),
+        } : {}),
+      })
+    }
   }
 
   // Vault chip — only in the global log, where rows span vaults; resolved name

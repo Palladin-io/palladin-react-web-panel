@@ -1222,6 +1222,24 @@ function DetailsTab({ vault, entry, loadCanonical, onDeleted }: DetailsTabProps)
                   </FeedbackSlot>
                 </div>
               </div>
+              {!decryptError && entry.type === ENTRY_TYPE_CREDENTIAL ? (
+                <SignInMethodField
+                  inline
+                  fields={customFields}
+                  onChange={setCustomFields}
+                  disabled={isSaving || decrypting || !originalSecret}
+                  entryId={entry.id}
+                  agentVisibility={policy ? {
+                    newMethodVisible: policy.discoverable,
+                    isVisible: (fieldId) => policy.discoverable
+                      && (policy.fields[`custom:${fieldId}`] ?? 'discovery') === 'discovery',
+                    onChange: (fieldId, visible) => setPolicy({ ...policy, fields: {
+                      ...policy.fields, [`custom:${fieldId}`]: visible ? 'discovery' : 'never',
+                    } }),
+                    disabled: !policy.discoverable,
+                  } : undefined}
+                />
+              ) : null}
               <SectionHeader>{t('vault.entries.totp.section')}</SectionHeader>
               <CredentialTotpField
                 value={credentialTotp}
@@ -1255,23 +1273,6 @@ function DetailsTab({ vault, entry, loadCanonical, onDeleted }: DetailsTabProps)
                 value={notes}
                 onChange={setNotes}
                 disabled={isSaving || decrypting || !originalSecret}
-              />
-            ) : null}
-            {!decryptError && entry.type === ENTRY_TYPE_CREDENTIAL ? (
-              <SignInMethodField
-                fields={customFields}
-                onChange={setCustomFields}
-                disabled={isSaving || decrypting || !originalSecret}
-                entryId={entry.id}
-                agentVisibility={policy ? {
-                  newMethodVisible: policy.discoverable,
-                  isVisible: (fieldId) => policy.discoverable
-                    && (policy.fields[`custom:${fieldId}`] ?? 'discovery') === 'discovery',
-                  onChange: (fieldId, visible) => setPolicy({ ...policy, fields: {
-                    ...policy.fields, [`custom:${fieldId}`]: visible ? 'discovery' : 'never',
-                  } }),
-                  disabled: !policy.discoverable,
-                } : undefined}
               />
             ) : null}
         </div>

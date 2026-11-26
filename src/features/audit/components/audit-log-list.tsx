@@ -75,6 +75,8 @@ export function AuditLogList({
             entryName={
               item.entryId ? presentation.resolveEntryName(item.entryId) : undefined
             }
+            entryAvailable={item.entryId ? presentation.availableEntryIds.has(item.entryId) : undefined}
+            entryLogin={item.entryId ? presentation.resolveEntryLogin(item.entryId, item.createdAt) : undefined}
             vaultName={
               item.vaultId ? presentation.resolveVaultName(item.vaultId) : undefined
             }
