@@ -14,6 +14,8 @@ vi.mock('./script-editor', () => ({
   ScriptEditor: ({ value }: { value: string }) => <pre data-testid="script-editor">{value}</pre>,
 }))
 
+const SYNTHETIC_TOTP_SEED = 'GEZDGNBVGY3TQOJQ'
+
 function secret(content: EntryPlaintext, extra: Partial<MemberSecretView> = {}): MemberSecretView {
   return {
     memberLabel: 'Example',
@@ -107,12 +109,22 @@ describe('EntryReadView', () => {
       type: ENTRY_TYPE_CREDENTIAL, username: 'alice', password: 'p',
       totp: 'otpauth://totp/Example:alice?secret=JBSWY3DPEHPK3PXP&issuer=Example',
       fields: [{ id: 'custom-totp', label: 'Backup authenticator', type: 'totp',
-        value: { secret: 'GEZDGNBVGY3TQOJQ', algorithm: 'SHA1', digits: 6, period: 30 } as never }],
+        value: { secret: SYNTHETIC_TOTP_SEED, algorithm: 'SHA1', digits: 6, period: 30 } as never }],
     }))
 
     expect(screen.getByText('Two-factor authentication')).toBeInTheDocument()
     expect(screen.getByText('Backup authenticator')).toBeInTheDocument()
     expect(screen.getAllByRole('timer')).toHaveLength(2)
+  })
+
+  it('keeps an unrecognized sign-in field as a concealed custom field', () => {
+    renderView(secret({ type: ENTRY_TYPE_CREDENTIAL, username: 'alice', password: 'p', fields: [
+      { id: 'legacy', label: 'Legacy sign-in', type: 'palladin.signin.v1',
+        value: { provider: 'google', account: 'alice@example.com' } as never },
+    ] }))
+
+    expect(screen.queryByText(/^Sign in with/)).not.toBeInTheDocument()
+    expect(screen.getByText('Legacy sign-in')).toBeInTheDocument()
   })
 
   it('conceals an unknown TOTP payload instead of rendering a code', () => {

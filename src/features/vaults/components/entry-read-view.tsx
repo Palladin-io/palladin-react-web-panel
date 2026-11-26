@@ -9,7 +9,7 @@ import { ENTITY_ICON_FRAME_CLASSES } from '../../../shared/lib/styles'
 const READ_CARD_CLASSES = 'rounded-xl border border-[var(--cv-border)] bg-[var(--cv-card-bg)]'
 import { useMemberSyncStore } from '../sync/member-sync-store'
 import { readCustomFields } from '../entry-blob'
-import { isSignInMethodField, readSignInMethods } from '../sign-in-method'
+import { readSignInMethods } from '../sign-in-method'
 import {
   ENTRY_TYPE_CREDENTIAL,
   ENTRY_TYPE_CREDIT_CARD,
@@ -67,7 +67,8 @@ export function EntryReadView({
     : undefined
   const pinnedTotp = pinnedField && isRenderableTotp(pinnedField) ? pinnedField : undefined
   const totpParams = nativeTotp ?? pinnedTotp?.value ?? null
-  const otherFields = customFields.filter((field) => field !== pinnedTotp && !isSignInMethodField(field))
+  const renderedSignInIds = new Set(signIn.map(({ fieldId }) => fieldId))
+  const otherFields = customFields.filter((field) => field !== pinnedTotp && !renderedSignInIds.has(field.id))
   const notes = content.notes?.trim() ?? ''
   const description = content.type === ENTRY_TYPE_SCRIPT
     ? content.execution?.description ?? secret.description
