@@ -44,6 +44,13 @@ describe('useOrgAuditResourceNames entry login', () => {
     expect(result.current.availableEntryIds.has(deleted)).toBe(false)
   })
 
+  it('resolves the exact Entry when the audit row has no Vault ID', () => {
+    const { result } = renderHook(() => useOrgAuditResourceNames([{ entryId: firstX, vaultId: null }]))
+    expect(result.current.availableEntryIds.has(firstX)).toBe(true)
+    expect(result.current.entryNameById[firstX]).toBe('X')
+    expect(result.current.resolveEntryLogin(firstX, occurredAt)).toEqual({ login: 'synthetic_one', current: false })
+  })
+
   it('stops resolving logins after lock clears the member index', () => {
     const { result, rerender } = renderHook(() => useOrgAuditResourceNames([{ entryId: firstX, vaultId }]))
     useMemberSyncStore.getState().clear()

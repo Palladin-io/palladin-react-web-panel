@@ -41,19 +41,17 @@ export function useOrgAuditResourceNames(
     const records = new Map<string, { username: string | null; updatedAt: string }>()
 
     for (const item of items) {
-      if (item.vaultId) {
-        const vault = memberVaults.get(item.vaultId)
-        vaultNames[item.vaultId] = vault?.metadata?.name ?? shortenKey(item.vaultId)
+      const vault = item.vaultId ? memberVaults.get(item.vaultId) : undefined
+      if (item.vaultId) vaultNames[item.vaultId] = vault?.metadata?.name ?? shortenKey(item.vaultId)
+      if (!item.entryId) continue
 
-        if (item.entryId) {
-          const record = vault?.entries.get(item.entryId)
-          const readable = record && !record.corrupt && record.payload ? record : null
-          entryNames[item.entryId] = readable?.payload?.memberLabel || shortenKey(item.entryId)
-          if (readable) records.set(item.entryId, { username: readable.payload?.username ?? null, updatedAt: readable.updatedAt })
-        }
-      } else if (item.entryId) {
-        entryNames[item.entryId] = shortenKey(item.entryId)
-      }
+      // Entry IDs are globally unique; a row without a Vault ID still binds to that exact Entry.
+      const record = item.vaultId
+        ? vault?.entries.get(item.entryId)
+        : [...memberVaults.values()].map((candidate) => candidate.entries.get(item.entryId!)).find(Boolean)
+      const readable = record && !record.corrupt && record.payload ? record : null
+      entryNames[item.entryId] = readable?.payload?.memberLabel || shortenKey(item.entryId)
+      if (readable) records.set(item.entryId, { username: readable.payload?.username ?? null, updatedAt: readable.updatedAt })
     }
 
     return { entryNameById: entryNames, vaultNameById: vaultNames, entryRecords: records }
