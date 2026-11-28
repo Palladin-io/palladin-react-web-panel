@@ -2292,7 +2292,6 @@
   "submissions.review.issuer": "Wystawca",
   "submissions.review.account": "Konto",
   "submissions.review.incompleteNew": "Ta propozycja nie zawiera wszystkich wartości i nazw pól potrzebnych do utworzenia nowego wpisu.",
-  "agents.sandbox.badge": "Sandbox",
   "agents.sandbox.tier": "Poziom zabezpieczeń",
   "agents.sandbox.tierValue": "Sandbox",
   "agents.sandbox.identityLifetime": "Tożsamość ważna przez",
@@ -2305,10 +2304,10 @@
   "agents.sandbox.grantsValue": "Jednorazowe · maks. {{minutes}} min",
   "agents.sandbox.fullAccess": "Pełny dostęp do sejfu",
   "agents.sandbox.notAllowed": "Niedozwolony",
-  "agents.sandbox.acknowledge": "Każdy proces w tym sandboksie może odczytać klucz Agenta",
   "agents.sandbox.dangerTitle": "Słabsza ochrona klucza",
-  "agents.sandbox.dangerBody": "Kod i prompty w sandboksie mogą działać jako ten Agent w ramach zatwierdzonych grantów. Druga kopia klucza zawiesza Agenta.",
+  "agents.sandbox.dangerBody": "Klucz Agenta jest zapisany w sandboksie, więc każdy działający tam program może go skopiować. Kto ma ten klucz, może korzystać z zatwierdzonych grantów Agenta, dopóki go nie dezaktywujesz albo jego tożsamość nie wygaśnie.",
   "agents.sandbox.approve": "Zatwierdź Agenta Sandbox",
   "agents.sandbox.zoneTitle": "Agent Sandbox",
-  "agents.sandbox.zoneBody": "Każdy proces w jego sandboksie może odczytać klucz tego Agenta."
+  "agents.sandbox.zoneBody": "Każdy proces w jego sandboksie może odczytać klucz tego Agenta.",
+  "agents.sandbox.tierHint": "Agent działa we współdzielonym środowisku, np. w sandboksie hostowanego AI, które nie chroni jego klucza. Jego granty są jednorazowe, pełny dostęp do sejfu jest zablokowany, a tożsamość wygasa po określonym czasie."
 }

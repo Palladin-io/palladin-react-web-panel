@@ -1,5 +1,5 @@
 import { DangerZone } from '../../../shared/components/danger-zone'
-import { MetadataBadge } from '../../../shared/components/metadata-badge'
+import { Tooltip } from '../../../shared/components/tooltip'
 import { WarningZone } from '../../../shared/components/warning-zone'
 import { DETAIL_SURFACE_CLASSES } from '../../../shared/lib/styles'
 import { useState, type ReactNode } from 'react'
@@ -173,7 +173,6 @@ export function AgentDetail({ agent, renderLogs }: AgentDetailProps) {
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
                   <h2 className="truncate text-heading font-bold text-[var(--cv-t1)]">{name}</h2>
-                  {agent.sandbox ? <MetadataBadge color="var(--cv-premium)">{t('agents.sandbox.badge')}</MetadataBadge> : null}
                   <span className="ml-auto"><AgentStatusBadge status={agent.status} /></span>
                 </div>
               </div>
@@ -188,7 +187,17 @@ export function AgentDetail({ agent, renderLogs }: AgentDetailProps) {
               />
               {agent.sandbox ? (
                 <>
-                  <DetailRow label={t('agents.sandbox.tier')} value={t('agents.sandbox.tierValue')} />
+                  <DetailRow
+                    label={t('agents.sandbox.tier')}
+                    value={(
+                      <Tooltip content={t('agents.sandbox.tierHint')} always>
+                        <span tabIndex={0} className="rounded-sm focus-visible:outline focus-visible:outline-1">
+                          {t('agents.sandbox.tierValue')}
+                          <span className="sr-only">{`. ${t('agents.sandbox.tierHint')}`}</span>
+                        </span>
+                      </Tooltip>
+                    )}
+                  />
                   <DetailRow label={t('agents.sandbox.identityExpires')} value={formatAgentDateTime(agent.sandbox.identityExpiresAt)} />
                   <DetailRow label={t('agents.sandbox.grants')} value={t('agents.sandbox.grantsValue', { minutes: agent.sandbox.maxGrantMinutes })} />
                   <DetailRow label={t('agents.sandbox.fullAccess')} value={t('agents.sandbox.notAllowed')} />
@@ -400,7 +409,7 @@ function ActionZone({ tone, title, hint, action }: ActionZoneProps) {
   )
 }
 
-function DetailRow({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
+function DetailRow({ label, value, mono }: { label: string; value: ReactNode; mono?: boolean }) {
   return (
     <div className="flex items-start justify-between gap-4">
       <dt className="shrink-0 text-ui text-[var(--cv-t3)]">{label}</dt>

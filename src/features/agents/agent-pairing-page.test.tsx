@@ -220,7 +220,7 @@ describe('AgentPairingPage', () => {
     )
   })
 
-  it('requires explicit acknowledgement before approving a Sandbox Agent', async () => {
+  it('shows the Sandbox security tier with its limits and approves without extra steps', async () => {
     const user = userEvent.setup()
     mocks.claim.mockResolvedValue({
       pairingId: 'pairing-1',
@@ -237,14 +237,11 @@ describe('AgentPairingPage', () => {
     renderPairing('pairing-1')
 
     const approveButton = await screen.findByRole('button', { name: 'Approve Sandbox Agent' })
-    expect(document.querySelector('.metadata-badge')).toHaveTextContent('Sandbox')
+    expect(screen.getByText('Security tier')).toBeVisible()
     expect(screen.getByText('Single use · max 60 min')).toBeVisible()
-    expect(approveButton).toBeDisabled()
-
-    const acknowledgement = screen.getByRole('checkbox', { name: "Any process in this sandbox can read this Agent's key" })
-    await user.click(acknowledgement)
-    expect(acknowledgement).toBeChecked()
-    expect(approveButton).toBeEnabled()
+    expect(screen.getByText('Weaker key protection')).toBeVisible()
+    expect(screen.queryByRole('checkbox')).toBeNull()
+    expect(document.querySelector('.metadata-badge')).toBeNull()
     await user.click(approveButton)
 
     await waitFor(() => expect(mocks.approve).toHaveBeenCalledWith('pairing-1', { displayName: 'Grok Bot', apiKeyId: 'key-1' }))
