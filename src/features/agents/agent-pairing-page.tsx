@@ -394,7 +394,7 @@ export function AgentPairingPage({
         {!claim.data.canCreateApiKey && claim.data.apiKeys.length === 0 && (
           <p role="status" className="text-meta text-[var(--cv-t2)]">{t('agents.pairing.noAvailableApiKey')}</p>
         )}
-        {claim.data.keyProtection === 'convenience' ? <KeyProtectionInfo /> : null}
+        {claim.data.keyProtection ? <KeyProtectionInfo value={claim.data.keyProtection} /> : null}
       </form>
     </PairingShell>
   )

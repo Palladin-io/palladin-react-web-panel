@@ -238,12 +238,31 @@ describe('AgentPairingPage', () => {
 
     const approveButton = await screen.findByRole('button', { name: 'Approve and activate' })
     expect(screen.getByText('Information')).toBeVisible()
-    expect(screen.getByText('Hardened', { selector: 'strong' })).toBeVisible()
     expect(screen.getByText('Convenience', { selector: 'strong' })).toBeVisible()
+    expect(screen.queryByText('Hardened', { selector: 'strong' })).toBeNull()
     expect(screen.queryByRole('checkbox')).toBeNull()
     await user.click(approveButton)
 
     await waitFor(() => expect(mocks.approve).toHaveBeenCalledWith('pairing-1', { displayName: 'Grok Bot', apiKeyId: 'key-1' }))
+  })
+
+  it('explains only the Hardened level for a Hardened Agent', async () => {
+    mocks.claim.mockResolvedValue({
+      pairingId: 'pairing-1',
+      displayName: 'Code assistant',
+      reservedDisplayName: null,
+      type: null,
+      publicKeyHint: 'MCowBQYD…Ed3k=',
+      expiresAt: '2026-09-05T12:00:00Z',
+      canCreateApiKey: false,
+      apiKeys: [{ apiKeyId: 'key-1', name: 'Automation', keyHint: 'pl_••••8Xq2' }],
+      keyProtection: 'hardened',
+    })
+
+    renderPairing('pairing-1')
+
+    expect(await screen.findByText('Hardened', { selector: 'strong' })).toBeVisible()
+    expect(screen.queryByText('Convenience', { selector: 'strong' })).toBeNull()
   })
 
   it('keeps approval pending and non-dismissible until discovery preparation finishes', async () => {

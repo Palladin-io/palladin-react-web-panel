@@ -18,12 +18,16 @@ export function KeyProtectionValue({ value }: { value: AgentKeyProtection }) {
 
 const strong = { b: <strong className="font-semibold text-[var(--cv-t1)]" /> }
 
-export function KeyProtectionInfo() {
+export function KeyProtectionInfo({ value }: { value: AgentKeyProtection }) {
   const { t } = useTranslation()
   return (
     <InfoZone title={t('agents.keyProtection.label')}>
-      <p><Trans i18nKey="agents.keyProtection.infoHardened" components={strong} /></p>
-      <p><Trans i18nKey="agents.keyProtection.infoConvenience" components={strong} /></p>
+      <p>
+        <Trans
+          i18nKey={value === 'hardened' ? 'agents.keyProtection.infoHardened' : 'agents.keyProtection.infoConvenience'}
+          components={strong}
+        />
+      </p>
     </InfoZone>
   )
 }
