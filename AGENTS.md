@@ -235,7 +235,7 @@ Every-iteration reuse reference. Reach for the shared component before writing m
 |---------|-----------|-------------|
 | Status / metadata chip | `MetadataBadge` | Neutral outlined chip; semantic text colour only |
 | Destructive section | `DangerZone` | Neutral card with red outline and inline title |
-| Explanation section | `InfoZone` | Neutral card with `--cv-info` title; informs without alarming |
+| Explanation section | `InfoZone` | `DangerZone` layout with `--cv-info` outline and heading; informs without alarming |
 | Search | `SearchBar` | Shared list/global search |
 | Toggle | `ToggleSwitch` | Boolean settings |
 | Text / URL / email input | `FormInput` | Any labelled single-line field |

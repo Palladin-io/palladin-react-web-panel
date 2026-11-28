@@ -1,4 +1,4 @@
-import { useTranslation } from 'react-i18next'
+import { Trans, useTranslation } from 'react-i18next'
 import { InfoZone } from '../../../shared/components/info-zone'
 import { Tooltip } from '../../../shared/components/tooltip'
 import type { AgentKeyProtection } from '../api/agents-api'
@@ -16,15 +16,14 @@ export function KeyProtectionValue({ value }: { value: AgentKeyProtection }) {
   )
 }
 
-export function KeyProtectionInfo({ identityLifetimeDays }: { identityLifetimeDays?: number }) {
+const strong = { b: <strong className="font-semibold text-[var(--cv-t1)]" /> }
+
+export function KeyProtectionInfo() {
   const { t } = useTranslation()
   return (
     <InfoZone title={t('agents.keyProtection.label')}>
-      <p>{t('agents.keyProtection.infoHardened')}</p>
-      <p>{t('agents.keyProtection.infoConvenience')}</p>
-      <p>{identityLifetimeDays
-        ? t('agents.keyProtection.infoLimitsDays', { count: identityLifetimeDays })
-        : t('agents.keyProtection.infoLimits')}</p>
+      <p><Trans i18nKey="agents.keyProtection.infoHardened" components={strong} /></p>
+      <p><Trans i18nKey="agents.keyProtection.infoConvenience" components={strong} /></p>
     </InfoZone>
   )
 }

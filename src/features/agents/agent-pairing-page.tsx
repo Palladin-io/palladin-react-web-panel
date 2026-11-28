@@ -234,7 +234,6 @@ export function AgentPairingPage({
     ? firstError(newApiKeyName, [required(t('agents.pairing.newApiKeyNameRequired'))])
     : null
   const showNewApiKeyNameError = newApiKeyNameTouched && newApiKeyNameError !== null
-  const convenience = claim.data.keyProtection === 'convenience' ? claim.data.convenience ?? null : null
   const canApprove = Boolean(
     normalizedName && apiKeyChoice && newApiKeyNameError === null,
   )
@@ -294,16 +293,6 @@ export function AgentPairingPage({
               <>
                 <dt>{t('agents.keyProtection.label')}</dt>
                 <dd className="break-words text-right"><KeyProtectionValue value={claim.data.keyProtection} /></dd>
-              </>
-            ) : null}
-            {convenience ? (
-              <>
-                <dt>{t('agents.keyProtection.identityLifetime')}</dt>
-                <dd className="break-words text-right">{t('agents.keyProtection.identityLifetimeValue', { count: convenience.identityLifetimeDays })}</dd>
-                <dt>{t('agents.keyProtection.grants')}</dt>
-                <dd className="break-words text-right">{t('agents.keyProtection.grantsValue', { minutes: convenience.maxGrantMinutes })}</dd>
-                <dt>{t('agents.keyProtection.fullAccess')}</dt>
-                <dd className="break-words text-right">{t('agents.keyProtection.notAllowed')}</dd>
               </>
             ) : null}
           </dl>
@@ -405,7 +394,7 @@ export function AgentPairingPage({
         {!claim.data.canCreateApiKey && claim.data.apiKeys.length === 0 && (
           <p role="status" className="text-meta text-[var(--cv-t2)]">{t('agents.pairing.noAvailableApiKey')}</p>
         )}
-        {convenience ? <KeyProtectionInfo identityLifetimeDays={convenience.identityLifetimeDays} /> : null}
+        {claim.data.keyProtection === 'convenience' ? <KeyProtectionInfo /> : null}
       </form>
     </PairingShell>
   )

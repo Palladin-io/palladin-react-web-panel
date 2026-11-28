@@ -1,5 +1,5 @@
 import { DangerZone } from '../../../shared/components/danger-zone'
-import { KeyProtectionInfo, KeyProtectionValue } from './agent-key-protection'
+import { KeyProtectionValue } from './agent-key-protection'
 import { DETAIL_SURFACE_CLASSES } from '../../../shared/lib/styles'
 import { useState, type ReactNode } from 'react'
 import { useNavigate } from '@tanstack/react-router'
@@ -187,13 +187,6 @@ export function AgentDetail({ agent, renderLogs }: AgentDetailProps) {
               {agent.keyProtection ? (
                 <DetailRow label={t('agents.keyProtection.label')} value={<KeyProtectionValue value={agent.keyProtection} />} />
               ) : null}
-              {agent.keyProtection === 'convenience' && agent.convenience ? (
-                <>
-                  <DetailRow label={t('agents.keyProtection.identityExpires')} value={formatAgentDateTime(agent.convenience.identityExpiresAt)} />
-                  <DetailRow label={t('agents.keyProtection.grants')} value={t('agents.keyProtection.grantsValue', { minutes: agent.convenience.maxGrantMinutes })} />
-                  <DetailRow label={t('agents.keyProtection.fullAccess')} value={t('agents.keyProtection.notAllowed')} />
-                </>
-              ) : null}
               {agent.deactivatedAt ? (
                 <DetailRow
                   label={t('agents.deactivatedOn')}
@@ -228,10 +221,6 @@ export function AgentDetail({ agent, renderLogs }: AgentDetailProps) {
                 />
               ) : null}
             </dl>
-
-            {agent.keyProtection === 'convenience' ? (
-              <div className="mt-4"><KeyProtectionInfo /></div>
-            ) : null}
 
             {/* Editable fields — hidden for pending agents (nothing to configure before approval) */}
             {agent.status !== AGENT_STATUS_PENDING ? (

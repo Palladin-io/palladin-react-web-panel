@@ -75,18 +75,11 @@ export interface Agent {
   description: string | null
   lastIp: string | null
   lastHostname: string | null
-  /** Authoritative key-protection tier declared at pairing and enforced by the backend. */
+  /** Authoritative key-protection tier declared by the runtime at pairing. */
   keyProtection?: AgentKeyProtection
-  /** Backend-owned limits; present only for Convenience. */
-  convenience?: AgentConvenienceLimits | null
 }
 
 export type AgentKeyProtection = 'hardened' | 'convenience'
-
-export interface AgentConvenienceLimits {
-  identityExpiresAt: string
-  maxGrantMinutes: number
-}
 
 interface AgentListResponse { items: Agent[] }
 
@@ -136,12 +129,6 @@ export interface AgentPairingClaim {
   canCreateApiKey: boolean
   apiKeys: AgentPairingApiKeyOption[]
   keyProtection?: AgentKeyProtection
-  convenience?: AgentPairingConvenienceLimits | null
-}
-
-export interface AgentPairingConvenienceLimits {
-  identityLifetimeDays: number
-  maxGrantMinutes: number
 }
 
 // Route params are an independent browser-input boundary. Validate before

@@ -1,4 +1,5 @@
 {
+  "common.infoZone": "Information",
   "common.dangerZone": "Danger Zone",
   "nav.welcomeNamed": "Welcome back, {{name}}",
   "audit.legend.desc.entryShareCreated": "The sender created an independently encrypted copy of the entire supported Entry, including notes, 2FA and custom fields.",
@@ -2236,17 +2237,6 @@
   "agents.keyProtection.convenience": "Convenience",
   "agents.keyProtection.hardenedHint": "The operating system protects the Agent's key from other programs.",
   "agents.keyProtection.convenienceHint": "The Agent's key is stored where the Agent runs, and other programs there can read it.",
-  "agents.keyProtection.identityLifetime": "Identity valid for",
-  "agents.keyProtection.identityLifetimeValue_one": "{{count}} day",
-  "agents.keyProtection.identityLifetimeValue_other": "{{count}} days",
-  "agents.keyProtection.identityExpires": "Identity expires",
-  "agents.keyProtection.grants": "Grants",
-  "agents.keyProtection.grantsValue": "Single use · max {{minutes}} min",
-  "agents.keyProtection.fullAccess": "Full vault access",
-  "agents.keyProtection.notAllowed": "Not allowed",
-  "agents.keyProtection.infoHardened": "Hardened: the operating system protects the Agent's key, so other programs on that computer cannot read it.",
-  "agents.keyProtection.infoConvenience": "Convenience: the key is stored where the Agent runs, for example in a hosted AI sandbox, so other programs in that environment can read it.",
-  "agents.keyProtection.infoLimits": "That is why this Agent gets single-use grants, no full vault access and an identity that expires.",
-  "agents.keyProtection.infoLimitsDays_one": "That is why this Agent gets single-use grants, no full vault access and an identity that expires after {{count}} day.",
-  "agents.keyProtection.infoLimitsDays_other": "That is why this Agent gets single-use grants, no full vault access and an identity that expires after {{count}} days."
+  "agents.keyProtection.infoHardened": "<b>Hardened</b>: the operating system protects the Agent's key, so other programs on that computer cannot read it.",
+  "agents.keyProtection.infoConvenience": "<b>Convenience</b>: the key is stored where the Agent runs, for example in a hosted AI sandbox, so other programs in that environment can read it. Decide which credentials to grant this Agent with that in mind."
 }

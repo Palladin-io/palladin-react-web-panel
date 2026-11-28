@@ -220,7 +220,7 @@ describe('AgentPairingPage', () => {
     )
   })
 
-  it('explains Convenience key protection and its limits without blocking approval', async () => {
+  it('informs about Convenience key protection and leaves the approval decision to the user', async () => {
     const user = userEvent.setup()
     mocks.claim.mockResolvedValue({
       pairingId: 'pairing-1',
@@ -232,15 +232,14 @@ describe('AgentPairingPage', () => {
       canCreateApiKey: false,
       apiKeys: [{ apiKeyId: 'key-1', name: 'Automation', keyHint: 'pl_••••8Xq2' }],
       keyProtection: 'convenience',
-      convenience: { identityLifetimeDays: 7, maxGrantMinutes: 60 },
     })
 
     renderPairing('pairing-1')
 
     const approveButton = await screen.findByRole('button', { name: 'Approve and activate' })
-    expect(screen.getAllByText('Key protection')).toHaveLength(2)
-    expect(screen.getByText('Single use · max 60 min')).toBeVisible()
-    expect(screen.getByText(/expires after 7 days/)).toBeVisible()
+    expect(screen.getByText('Information')).toBeVisible()
+    expect(screen.getByText('Hardened', { selector: 'strong' })).toBeVisible()
+    expect(screen.getByText('Convenience', { selector: 'strong' })).toBeVisible()
     expect(screen.queryByRole('checkbox')).toBeNull()
     await user.click(approveButton)
 

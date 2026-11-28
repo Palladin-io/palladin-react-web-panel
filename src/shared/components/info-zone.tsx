@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { useTranslation } from 'react-i18next'
 
 interface InfoZoneProps {
   title: string
@@ -6,11 +7,16 @@ interface InfoZoneProps {
   className?: string
 }
 
-/** Calm, neutral counterpart of DangerZone for explanations that must not alarm. */
+/** DangerZone's geometry in the calm `--cv-info` colour, for explanations that must not alarm. */
 export function InfoZone({ title, children, className = '' }: InfoZoneProps) {
+  const { t } = useTranslation()
   return (
-    <section className={`rounded-xl border border-[var(--cv-border)] bg-[var(--cv-card-bg)] p-4 ${className}`}>
-      <h2 className="text-ui font-semibold text-[var(--cv-info)]">{title}</h2>
+    <section className={`rounded-xl border border-[var(--cv-info)] bg-[var(--cv-card-bg)] p-4 ${className}`}>
+      <h2 className="flex flex-wrap items-center gap-2 text-ui font-semibold">
+        <span className="text-[var(--cv-info)]">{t('common.infoZone')}</span>
+        <span aria-hidden="true" className="text-[var(--cv-t3)]">|</span>
+        <span className="text-[var(--cv-t1)]">{title}</span>
+      </h2>
       <div className="mt-3 flex flex-col gap-2 text-meta text-[var(--cv-t3)]">{children}</div>
     </section>
   )
