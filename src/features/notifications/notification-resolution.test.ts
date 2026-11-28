@@ -37,6 +37,17 @@ describe('notification local resolution', () => {
     }))
   })
 
+  it('takes the agent icon colour from the current Agent, dropping a stale metadata colour', () => {
+    const stale = { ...item, metadata: { ...item.metadata, agentIconColor: '#A78BFA' } }
+    const withColor = { agentId, name: 'Deploy Bot', iconKey: 'cloud', iconColor: '#60A5FA' } as Agent
+    const withoutColor = { agentId, name: 'Deploy Bot', iconKey: 'cloud', iconColor: null } as Agent
+
+    expect(resolveNotificationItem(stale, { vaults: new Map(), agents: new Map([[agentId, withColor]]) })
+      .metadata.agentIconColor).toBe('#60A5FA')
+    expect(resolveNotificationItem(stale, { vaults: new Map(), agents: new Map([[agentId, withoutColor]]) })
+      .metadata).not.toHaveProperty('agentIconColor')
+  })
+
   it('keeps missing/deleted references opaque and derives only internal routes', () => {
     const unresolved = resolveNotificationItem(item, { vaults: new Map(), agents: new Map() })
     expect(unresolved.metadata).not.toHaveProperty('vaultName')

@@ -2,6 +2,7 @@ import type { EncryptedReasonContract } from '../../../shared/crypto/reason-prot
 import type { GrantFieldSelectionMode } from '../../../shared/types/grant-field-selection'
 
 import { api } from "../../../shared/api/client";
+import { getPublicAssetsByIds } from "../../../shared/api/public-assets-api";
 import type { buildCanonicalGrantEnvelope } from "../../../shared/crypto/grant-protocol";
 import type { AgentWrappedVaultKeyContract } from "../../../shared/crypto/x25519-wrapper";
 import type { ScriptExecutionEncryptedPackageV1 } from "../../../shared/crypto/script-execution";
@@ -86,6 +87,7 @@ export interface OrgGrant {
   agentAccessEpoch?: number | null
   agentName?: string | null
   agentIconKey?: string | null
+  agentIconColor?: string | null
   agentPublicKey?: string | null
   recipientAgentKeyVersion?: number | null
   agentSigningPublicKey?: string | null
@@ -148,6 +150,12 @@ export async function getOrgGrants(
   if (params.pageSize) searchParams.set("pageSize", String(params.pageSize));
 
   const page = await api.get("api/grants", { searchParams }).json<OrgGrantPage>();
+  const agentIconAssetIds = page.items.flatMap((grant) =>
+    grant.agentIconKey?.startsWith("public-asset:")
+      ? [grant.agentIconKey.slice("public-asset:".length)]
+      : [],
+  );
+  if (agentIconAssetIds.length > 0) await getPublicAssetsByIds(agentIconAssetIds).catch(() => []);
   return {
     ...page,
     nextCursor: page.nextCursor ?? null,

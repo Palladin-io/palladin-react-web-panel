@@ -250,7 +250,7 @@ function SubmissionReviewForm({ item, opened, onApproved }: {
     <div className="flex flex-col gap-4">
       <section className={`${DETAIL_SURFACE_CLASSES} p-4`}>
         <div className="flex min-w-0 items-start gap-3">
-          <AgentAvatar agent={{ name: item.agentName, agentId: item.agentId, iconKey: agent.data?.iconKey ?? null }} size={40} />
+          <AgentAvatar agent={{ name: item.agentName, agentId: item.agentId, iconKey: agent.data?.iconKey ?? null, iconColor: agent.data?.iconColor ?? null }} size={40} />
           <div className="min-w-0 flex-1">
             <h2 className="truncate text-heading font-bold text-[var(--cv-t1)]">{item.agentName}</h2>
             <p className="truncate text-meta text-[var(--cv-t3)]">{formatRelativeTime(item.createdAt, t)}</p>

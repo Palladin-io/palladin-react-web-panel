@@ -70,28 +70,19 @@ export const AGENT_ICON_ALL = [
   'biotech', 'developer_mode',
 ] as const
 
-/**
- * Deterministic avatar palette for agents. The colour is picked from the
- * first character of the agent name (or id, when unnamed) so the same
- * agent always renders with the same tint across list and detail views.
- */
-const AVATAR_PALETTE = [
-  '#10B981',
-  '#E54645',
-  '#FFAB87',
-  '#F0C040',
-  '#5B8DEF',
-  '#A78BFA',
-  '#34D399',
-  '#F97316',
-] as const
+/** Initials tint shared with mobile: same palette and code-unit sum over the stable agent id. */
+const AVATAR_PALETTE = ['#FFAB87', '#60A5FA', '#A78BFA', '#10B981', '#F4B942'] as const
+const AVATAR_FALLBACK_COLOR = '#8A95A6'
 
-/** Picks a stable avatar colour for an agent. */
-export function agentAvatarColor(agent: Pick<Agent, 'name' | 'agentId'>): string {
-  const seed = (agent.name?.trim() || agent.agentId || '').trim()
-  if (seed.length === 0) return AVATAR_PALETTE[0]
-  const code = seed.charCodeAt(0)
-  return AVATAR_PALETTE[code % AVATAR_PALETTE.length]
+export function agentAvatarColor(agentId: string): string {
+  if (agentId.length === 0) return AVATAR_FALLBACK_COLOR
+  let sum = 0
+  for (let index = 0; index < agentId.length; index += 1) sum += agentId.charCodeAt(index)
+  return AVATAR_PALETTE[sum % AVATAR_PALETTE.length]
+}
+
+export function agentGlyphColor(iconKey: string, iconColor: string | null | undefined): string {
+  return iconColor || AGENT_ICON_COLORS[iconKey] || AVATAR_FALLBACK_COLOR
 }
 
 /**

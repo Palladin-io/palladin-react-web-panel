@@ -44,6 +44,8 @@ function resolvedMetadata(
   if (agent?.lastHostname) next.host = agent.lastHostname
   if (agent?.lastIp) next.ip = agent.lastIp
   if (agent?.iconKey) next.agentIconKey = agent.iconKey
+  if (agent?.iconColor) next.agentIconColor = agent.iconColor
+  else if (agent) delete next.agentIconColor
   if (type === 'agent_approved' && agent?.enrolledByName) next.actorName = agent.enrolledByName
   return next
 }
