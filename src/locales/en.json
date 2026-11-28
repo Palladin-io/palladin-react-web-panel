@@ -2235,8 +2235,8 @@
   "agents.keyProtection.label": "Key protection",
   "agents.keyProtection.hardened": "Hardened",
   "agents.keyProtection.convenience": "Convenience",
-  "agents.keyProtection.hardenedHint": "The operating system protects the Agent's key from other programs.",
-  "agents.keyProtection.convenienceHint": "The Agent's key is stored where the Agent runs, and other programs there can read it.",
+  "agents.keyProtection.hardenedHint": "The system the Agent runs on offers secure key storage, for example the macOS Keychain or a dedicated Linux account, so other programs cannot read the Agent's key. The level depends on what that system supports.",
+  "agents.keyProtection.convenienceHint": "The system the Agent runs on, for example a hosted AI sandbox, has no secure key storage, so other programs there can read the Agent's key. The level depends on what that system supports.",
   "agents.keyProtection.infoHardened": "<b>Hardened</b>: the operating system protects the Agent's key, so other programs on that computer cannot read it.",
   "agents.keyProtection.infoConvenience": "<b>Convenience</b>: the key is stored where the Agent runs, for example in a hosted AI sandbox, so other programs in that environment can read it. Decide which credentials to grant this Agent with that in mind."
 }
