@@ -114,3 +114,11 @@ EntryIcon, AgentAvatar and VaultIconCircle share `ENTITY_ICON_FRAME_CLASSES` and
 `ENTITY_ICON_IMAGE_CLASSES` from `shared/lib/styles.ts`: rounded outlined frame,
 transparent image background, contained image at62.5% of the frame, and12% tint
 for glyph identities. Standard list cards use32 design-pixel frames.
+
+AgentAvatar is the exception to the glyph tint: it keeps a neutral `--cv-card-bg`
+background and a 1.5px border in the glyph or initials colour (neutral for an
+uploaded image). Precedence and colours match the extension and mobile: uploaded
+`public-asset:` image → glyph in `iconColor` or its `AGENT_ICON_COLORS` default →
+initials, then `smart_toy`, tinted by `agentAvatarColor(agentId)` (shared palette and
+code-unit sum). It subscribes to the public-asset cache; list fetchers hydrate it
+with one `by-ids` request per page.

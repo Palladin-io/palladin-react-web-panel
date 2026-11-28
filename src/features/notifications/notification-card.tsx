@@ -188,6 +188,7 @@ function CardAvatar({ header }: { header: CardHeaderIcon }) {
           name: header.agentName ?? '',
           agentId: header.agentId ?? '',
           iconKey: header.agentIconKey,
+          iconColor: header.agentIconColor,
         }}
         size={36}
       />

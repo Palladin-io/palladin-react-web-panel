@@ -4,6 +4,10 @@ const getJson = vi.hoisted(() => vi.fn())
 const postJson = vi.hoisted(() => vi.fn())
 const deleteFn = vi.hoisted(() => vi.fn())
 
+const getPublicAssetsByIds = vi.hoisted(() => vi.fn())
+
+vi.mock('../../../shared/api/public-assets-api', () => ({ getPublicAssetsByIds }))
+
 vi.mock('../../../shared/api/client', () => ({
   api: {
     get: vi.fn(() => ({ json: getJson })),
@@ -53,6 +57,41 @@ describe('org-grants-api', () => {
     deleteFn.mockReset()
     vi.mocked(api.get).mockClear()
     vi.mocked(api.post).mockClear()
+    getPublicAssetsByIds.mockReset()
+    getPublicAssetsByIds.mockResolvedValue([])
+  })
+
+  it('hydrates uploaded agent icons for the whole page in one catalog request', async () => {
+    getJson.mockResolvedValue({
+      items: [
+        { ...sampleGrant, id: 'g1', agentIconKey: 'public-asset:asset-1', agentIconColor: null },
+        { ...sampleGrant, id: 'g2', agentIconKey: 'cloud', agentIconColor: '#A78BFA' },
+        { ...sampleGrant, id: 'g3', agentIconKey: 'public-asset:asset-2' },
+      ],
+    })
+
+    const page = await getOrgGrants()
+
+    expect(getPublicAssetsByIds).toHaveBeenCalledTimes(1)
+    expect(getPublicAssetsByIds).toHaveBeenCalledWith(['asset-1', 'asset-2'])
+    expect(page.items[1].agentIconColor).toBe('#A78BFA')
+  })
+
+  it('keeps the grant page when agent icon hydration fails', async () => {
+    getJson.mockResolvedValue({ items: [{ ...sampleGrant, agentIconKey: 'public-asset:asset-1' }] })
+    getPublicAssetsByIds.mockRejectedValue(new Error('catalog unavailable'))
+
+    const page = await getOrgGrants()
+
+    expect(page.items).toHaveLength(1)
+  })
+
+  it('skips the catalog request when no grant has an uploaded agent icon', async () => {
+    getJson.mockResolvedValue({ items: [sampleGrant] })
+
+    await getOrgGrants()
+
+    expect(getPublicAssetsByIds).not.toHaveBeenCalled()
   })
 
   it('parses the enriched org grants page', async () => {

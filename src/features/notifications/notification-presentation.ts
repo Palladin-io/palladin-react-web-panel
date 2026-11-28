@@ -43,6 +43,7 @@ export type CardHeaderIcon =
       agentName: string | null
       agentId: string | null
       agentIconKey: string | null
+      agentIconColor: string | null
     }
   | { kind: 'glyph'; glyph: string; tone: 'red' | 'amber' | 'teal' | 'grey' }
 
@@ -191,6 +192,7 @@ export function notificationCardPresentation(
     ?? (meta(item, 'agentId') ? shortenKey(meta(item, 'agentId')!) : null)
   const agentId = meta(item, 'agentId') ?? null
   const agentIconKey = meta(item, 'agentIconKey') ?? null
+  const agentIconColor = meta(item, 'agentIconColor') ?? null
 
   // Title = the localized type name (e.g. "New agent"). Subtitle = agent +
   // context. Two agent fallback keys mirror mobile: the softer "An agent"
@@ -222,7 +224,7 @@ export function notificationCardPresentation(
 
     case 'grant_pending':
       return {
-        header: { kind: 'agent', agentName, agentId, agentIconKey },
+        header: { kind: 'agent', agentName, agentId, agentIconKey, agentIconColor },
         titleKey,
         subtitleKey: 'notifications.sub.grantPending',
         subtitleAgent: agentName,
@@ -246,7 +248,7 @@ export function notificationCardPresentation(
 
     case 'agent_approved':
       return {
-        header: { kind: 'agent', agentName, agentId, agentIconKey },
+        header: { kind: 'agent', agentName, agentId, agentIconKey, agentIconColor },
         titleKey,
         subtitleKey: 'notifications.sub.agentApproved',
         subtitleAgent: agentName,
@@ -262,7 +264,7 @@ export function notificationCardPresentation(
 
     case 'agent_deactivated':
       return {
-        header: { kind: 'agent', agentName, agentId, agentIconKey },
+        header: { kind: 'agent', agentName, agentId, agentIconKey, agentIconColor },
         titleKey,
         subtitleKey: 'notifications.sub.agentDeactivated',
         subtitleAgent: agentName,
@@ -292,7 +294,7 @@ export function notificationCardPresentation(
 
     case 'grant_approved':
       return {
-        header: { kind: 'agent', agentName, agentId, agentIconKey },
+        header: { kind: 'agent', agentName, agentId, agentIconKey, agentIconColor },
         titleKey,
         subtitleKey: 'notifications.sub.grantUpdate',
         subtitleAgent: agentName,
@@ -309,7 +311,7 @@ export function notificationCardPresentation(
     // render as an immutable log (no actions, no pill) rather than crash.
     case 'grant_revoked':
       return {
-        header: { kind: 'agent', agentName, agentId, agentIconKey },
+        header: { kind: 'agent', agentName, agentId, agentIconKey, agentIconColor },
         titleKey,
         subtitleKey: 'notifications.sub.grantUpdate',
         subtitleAgent: agentName,
@@ -323,7 +325,7 @@ export function notificationCardPresentation(
 
     case 'grant_denied':
       return {
-        header: { kind: 'agent', agentName, agentId, agentIconKey },
+        header: { kind: 'agent', agentName, agentId, agentIconKey, agentIconColor },
         titleKey,
         subtitleKey: 'notifications.sub.grantUpdate',
         subtitleAgent: agentName,
@@ -339,7 +341,7 @@ export function notificationCardPresentation(
     case 'submission_pending':
     case 'submission_resolved':
       return {
-        header: { kind: 'agent', agentName, agentId, agentIconKey },
+        header: { kind: 'agent', agentName, agentId, agentIconKey, agentIconColor },
         titleKey,
         subtitleKey: item.type === 'submission_pending' ? 'notifications.sub.submissionPending' : 'notifications.sub.submissionResolved',
         subtitleAgent: agentName,

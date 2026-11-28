@@ -381,7 +381,7 @@ function OrgGrantRow({
     <div className="overflow-hidden rounded-xl border border-[var(--cv-border)] bg-[var(--cv-card-bg)]">
       <div className="flex items-center gap-2 px-[0.875rem] py-2.5">
         <AgentAvatar
-          agent={{ name: agentName, agentId: grant.agentId ?? '', iconKey: grant.agentIconKey ?? null }}
+          agent={{ name: agentName, agentId: grant.agentId ?? '', iconKey: grant.agentIconKey ?? null, iconColor: grant.agentIconColor ?? null }}
           size={28}
         />
         <p
