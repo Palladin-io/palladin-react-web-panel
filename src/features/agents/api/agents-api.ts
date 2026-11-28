@@ -75,12 +75,15 @@ export interface Agent {
   description: string | null
   lastIp: string | null
   lastHostname: string | null
-  /** Present only for an explicitly paired Sandbox Agent; the backend enforces its limits. */
-  sandbox?: AgentSandboxPolicy | null
+  /** Authoritative key-protection tier declared at pairing and enforced by the backend. */
+  keyProtection?: AgentKeyProtection
+  /** Backend-owned limits; present only for Convenience. */
+  convenience?: AgentConvenienceLimits | null
 }
 
-/** Backend-owned limits of a Sandbox Agent whose key is readable inside its sandbox. */
-export interface AgentSandboxPolicy {
+export type AgentKeyProtection = 'hardened' | 'convenience'
+
+export interface AgentConvenienceLimits {
   identityExpiresAt: string
   maxGrantMinutes: number
 }
@@ -132,11 +135,11 @@ export interface AgentPairingClaim {
   expiresAt: string
   canCreateApiKey: boolean
   apiKeys: AgentPairingApiKeyOption[]
-  /** Requested by the runtime at pairing start; approval requires explicit acknowledgement. */
-  sandbox?: AgentPairingSandboxPolicy | null
+  keyProtection?: AgentKeyProtection
+  convenience?: AgentPairingConvenienceLimits | null
 }
 
-export interface AgentPairingSandboxPolicy {
+export interface AgentPairingConvenienceLimits {
   identityLifetimeDays: number
   maxGrantMinutes: number
 }

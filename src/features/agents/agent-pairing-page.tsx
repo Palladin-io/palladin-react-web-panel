@@ -8,8 +8,7 @@ import { FeedbackSlot, FormInput } from '../../shared/components/form-field'
 import { FormSelect } from '../../shared/components/form-select'
 import { Icon } from '../../shared/components/icon'
 import { DialogFooter } from '../../shared/components/dialog-footer'
-import { DangerZone } from '../../shared/components/danger-zone'
-import { Tooltip } from '../../shared/components/tooltip'
+import { KeyProtectionInfo, KeyProtectionValue } from './components/agent-key-protection'
 import { ModalShell } from '../../shared/components/modal-shell'
 import { analytics } from '../../shared/lib/analytics'
 import { firstError, required } from '../../shared/lib/validation'
@@ -235,7 +234,7 @@ export function AgentPairingPage({
     ? firstError(newApiKeyName, [required(t('agents.pairing.newApiKeyNameRequired'))])
     : null
   const showNewApiKeyNameError = newApiKeyNameTouched && newApiKeyNameError !== null
-  const sandbox = claim.data.sandbox ?? null
+  const convenience = claim.data.keyProtection === 'convenience' ? claim.data.convenience ?? null : null
   const canApprove = Boolean(
     normalizedName && apiKeyChoice && newApiKeyNameError === null,
   )
@@ -249,7 +248,7 @@ export function AgentPairingPage({
             {t('agents.pairing.reject')}
           </Button>
           <Button variant="accent" size="sm" className="min-w-0 flex-[2]" type="submit" form="agent-pairing-approval" disabled={!canApprove || actionPending}>
-            {approve.isPending ? t('agents.pairing.approving') : t(sandbox ? 'agents.sandbox.approve' : 'agents.pairing.approve')}
+            {approve.isPending ? t('agents.pairing.approving') : t('agents.pairing.approve')}
           </Button>
         </DialogFooter>
       }
@@ -291,23 +290,20 @@ export function AgentPairingPage({
             <dd className="break-words text-right">{claim.data.publicKeyHint}</dd>
             <dt>{t('agents.pairing.expiresLabel')}</dt>
             <dd className="break-words text-right">{formatAgentDateTime(claim.data.expiresAt)}</dd>
-            {sandbox ? (
+            {claim.data.keyProtection ? (
               <>
-                <dt>{t('agents.sandbox.tier')}</dt>
-                <dd className="break-words text-right">
-                  <Tooltip content={t('agents.sandbox.tierHint')} always>
-                    <span tabIndex={0} className="rounded-sm focus-visible:outline focus-visible:outline-1">
-                      {t('agents.sandbox.tierValue')}
-                      <span className="sr-only">{`. ${t('agents.sandbox.tierHint')}`}</span>
-                    </span>
-                  </Tooltip>
-                </dd>
-                <dt>{t('agents.sandbox.identityLifetime')}</dt>
-                <dd className="break-words text-right">{t('agents.sandbox.identityLifetimeValue', { count: sandbox.identityLifetimeDays })}</dd>
-                <dt>{t('agents.sandbox.grants')}</dt>
-                <dd className="break-words text-right">{t('agents.sandbox.grantsValue', { minutes: sandbox.maxGrantMinutes })}</dd>
-                <dt>{t('agents.sandbox.fullAccess')}</dt>
-                <dd className="break-words text-right">{t('agents.sandbox.notAllowed')}</dd>
+                <dt>{t('agents.keyProtection.label')}</dt>
+                <dd className="break-words text-right"><KeyProtectionValue value={claim.data.keyProtection} /></dd>
+              </>
+            ) : null}
+            {convenience ? (
+              <>
+                <dt>{t('agents.keyProtection.identityLifetime')}</dt>
+                <dd className="break-words text-right">{t('agents.keyProtection.identityLifetimeValue', { count: convenience.identityLifetimeDays })}</dd>
+                <dt>{t('agents.keyProtection.grants')}</dt>
+                <dd className="break-words text-right">{t('agents.keyProtection.grantsValue', { minutes: convenience.maxGrantMinutes })}</dd>
+                <dt>{t('agents.keyProtection.fullAccess')}</dt>
+                <dd className="break-words text-right">{t('agents.keyProtection.notAllowed')}</dd>
               </>
             ) : null}
           </dl>
@@ -409,9 +405,7 @@ export function AgentPairingPage({
         {!claim.data.canCreateApiKey && claim.data.apiKeys.length === 0 && (
           <p role="status" className="text-meta text-[var(--cv-t2)]">{t('agents.pairing.noAvailableApiKey')}</p>
         )}
-        {sandbox ? (
-          <DangerZone title={t('agents.sandbox.dangerTitle')} description={t('agents.sandbox.dangerBody')}>{null}</DangerZone>
-        ) : null}
+        {convenience ? <KeyProtectionInfo identityLifetimeDays={convenience.identityLifetimeDays} /> : null}
       </form>
     </PairingShell>
   )

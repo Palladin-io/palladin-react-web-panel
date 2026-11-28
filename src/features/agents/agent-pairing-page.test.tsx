@@ -220,7 +220,7 @@ describe('AgentPairingPage', () => {
     )
   })
 
-  it('shows the Sandbox security tier with its limits and approves without extra steps', async () => {
+  it('explains Convenience key protection and its limits without blocking approval', async () => {
     const user = userEvent.setup()
     mocks.claim.mockResolvedValue({
       pairingId: 'pairing-1',
@@ -231,17 +231,17 @@ describe('AgentPairingPage', () => {
       expiresAt: '2026-09-05T12:00:00Z',
       canCreateApiKey: false,
       apiKeys: [{ apiKeyId: 'key-1', name: 'Automation', keyHint: 'pl_••••8Xq2' }],
-      sandbox: { identityLifetimeDays: 7, maxGrantMinutes: 60 },
+      keyProtection: 'convenience',
+      convenience: { identityLifetimeDays: 7, maxGrantMinutes: 60 },
     })
 
     renderPairing('pairing-1')
 
-    const approveButton = await screen.findByRole('button', { name: 'Approve Sandbox Agent' })
-    expect(screen.getByText('Security tier')).toBeVisible()
+    const approveButton = await screen.findByRole('button', { name: 'Approve and activate' })
+    expect(screen.getAllByText('Key protection')).toHaveLength(2)
     expect(screen.getByText('Single use · max 60 min')).toBeVisible()
-    expect(screen.getByText('Weaker key protection')).toBeVisible()
+    expect(screen.getByText(/expires after 7 days/)).toBeVisible()
     expect(screen.queryByRole('checkbox')).toBeNull()
-    expect(document.querySelector('.metadata-badge')).toBeNull()
     await user.click(approveButton)
 
     await waitFor(() => expect(mocks.approve).toHaveBeenCalledWith('pairing-1', { displayName: 'Grok Bot', apiKeyId: 'key-1' }))

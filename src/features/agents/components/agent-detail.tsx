@@ -1,6 +1,5 @@
 import { DangerZone } from '../../../shared/components/danger-zone'
-import { Tooltip } from '../../../shared/components/tooltip'
-import { WarningZone } from '../../../shared/components/warning-zone'
+import { KeyProtectionInfo, KeyProtectionValue } from './agent-key-protection'
 import { DETAIL_SURFACE_CLASSES } from '../../../shared/lib/styles'
 import { useState, type ReactNode } from 'react'
 import { useNavigate } from '@tanstack/react-router'
@@ -185,22 +184,14 @@ export function AgentDetail({ agent, renderLogs }: AgentDetailProps) {
                 value={formatPublicKey(agent)}
                 mono
               />
-              {agent.sandbox ? (
+              {agent.keyProtection ? (
+                <DetailRow label={t('agents.keyProtection.label')} value={<KeyProtectionValue value={agent.keyProtection} />} />
+              ) : null}
+              {agent.keyProtection === 'convenience' && agent.convenience ? (
                 <>
-                  <DetailRow
-                    label={t('agents.sandbox.tier')}
-                    value={(
-                      <Tooltip content={t('agents.sandbox.tierHint')} always>
-                        <span tabIndex={0} className="rounded-sm focus-visible:outline focus-visible:outline-1">
-                          {t('agents.sandbox.tierValue')}
-                          <span className="sr-only">{`. ${t('agents.sandbox.tierHint')}`}</span>
-                        </span>
-                      </Tooltip>
-                    )}
-                  />
-                  <DetailRow label={t('agents.sandbox.identityExpires')} value={formatAgentDateTime(agent.sandbox.identityExpiresAt)} />
-                  <DetailRow label={t('agents.sandbox.grants')} value={t('agents.sandbox.grantsValue', { minutes: agent.sandbox.maxGrantMinutes })} />
-                  <DetailRow label={t('agents.sandbox.fullAccess')} value={t('agents.sandbox.notAllowed')} />
+                  <DetailRow label={t('agents.keyProtection.identityExpires')} value={formatAgentDateTime(agent.convenience.identityExpiresAt)} />
+                  <DetailRow label={t('agents.keyProtection.grants')} value={t('agents.keyProtection.grantsValue', { minutes: agent.convenience.maxGrantMinutes })} />
+                  <DetailRow label={t('agents.keyProtection.fullAccess')} value={t('agents.keyProtection.notAllowed')} />
                 </>
               ) : null}
               {agent.deactivatedAt ? (
@@ -238,10 +229,8 @@ export function AgentDetail({ agent, renderLogs }: AgentDetailProps) {
               ) : null}
             </dl>
 
-            {agent.sandbox ? (
-              <div className="mt-4">
-                <WarningZone title={t('agents.sandbox.zoneTitle')}>{t('agents.sandbox.zoneBody')}</WarningZone>
-              </div>
+            {agent.keyProtection === 'convenience' ? (
+              <div className="mt-4"><KeyProtectionInfo /></div>
             ) : null}
 
             {/* Editable fields — hidden for pending agents (nothing to configure before approval) */}
