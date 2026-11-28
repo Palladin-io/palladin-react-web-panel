@@ -1,4 +1,6 @@
 import { DangerZone } from '../../../shared/components/danger-zone'
+import { MetadataBadge } from '../../../shared/components/metadata-badge'
+import { WarningZone } from '../../../shared/components/warning-zone'
 import { DETAIL_SURFACE_CLASSES } from '../../../shared/lib/styles'
 import { useState, type ReactNode } from 'react'
 import { useNavigate } from '@tanstack/react-router'
@@ -171,6 +173,7 @@ export function AgentDetail({ agent, renderLogs }: AgentDetailProps) {
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
                   <h2 className="truncate text-heading font-bold text-[var(--cv-t1)]">{name}</h2>
+                  {agent.sandbox ? <MetadataBadge color="var(--cv-premium)">{t('agents.sandbox.badge')}</MetadataBadge> : null}
                   <span className="ml-auto"><AgentStatusBadge status={agent.status} /></span>
                 </div>
               </div>
@@ -183,6 +186,14 @@ export function AgentDetail({ agent, renderLogs }: AgentDetailProps) {
                 value={formatPublicKey(agent)}
                 mono
               />
+              {agent.sandbox ? (
+                <>
+                  <DetailRow label={t('agents.sandbox.tier')} value={t('agents.sandbox.tierValue')} />
+                  <DetailRow label={t('agents.sandbox.identityExpires')} value={formatAgentDateTime(agent.sandbox.identityExpiresAt)} />
+                  <DetailRow label={t('agents.sandbox.grants')} value={t('agents.sandbox.grantsValue', { minutes: agent.sandbox.maxGrantMinutes })} />
+                  <DetailRow label={t('agents.sandbox.fullAccess')} value={t('agents.sandbox.notAllowed')} />
+                </>
+              ) : null}
               {agent.deactivatedAt ? (
                 <DetailRow
                   label={t('agents.deactivatedOn')}
@@ -217,6 +228,12 @@ export function AgentDetail({ agent, renderLogs }: AgentDetailProps) {
                 />
               ) : null}
             </dl>
+
+            {agent.sandbox ? (
+              <div className="mt-4">
+                <WarningZone title={t('agents.sandbox.zoneTitle')}>{t('agents.sandbox.zoneBody')}</WarningZone>
+              </div>
+            ) : null}
 
             {/* Editable fields — hidden for pending agents (nothing to configure before approval) */}
             {agent.status !== AGENT_STATUS_PENDING ? (

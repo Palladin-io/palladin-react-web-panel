@@ -220,6 +220,36 @@ describe('AgentPairingPage', () => {
     )
   })
 
+  it('requires explicit acknowledgement before approving a Sandbox Agent', async () => {
+    const user = userEvent.setup()
+    mocks.claim.mockResolvedValue({
+      pairingId: 'pairing-1',
+      displayName: 'Grok Bot',
+      reservedDisplayName: null,
+      type: null,
+      publicKeyHint: 'MCowBQYD…Ed3k=',
+      expiresAt: '2026-09-05T12:00:00Z',
+      canCreateApiKey: false,
+      apiKeys: [{ apiKeyId: 'key-1', name: 'Automation', keyHint: 'pl_••••8Xq2' }],
+      sandbox: { identityLifetimeDays: 7, maxGrantMinutes: 60 },
+    })
+
+    renderPairing('pairing-1')
+
+    const approveButton = await screen.findByRole('button', { name: 'Approve Sandbox Agent' })
+    expect(document.querySelector('.metadata-badge')).toHaveTextContent('Sandbox')
+    expect(screen.getByText('Single use · max 60 min')).toBeVisible()
+    expect(approveButton).toBeDisabled()
+
+    const acknowledgement = screen.getByRole('checkbox', { name: "Any process in this sandbox can read this Agent's key" })
+    await user.click(acknowledgement)
+    expect(acknowledgement).toBeChecked()
+    expect(approveButton).toBeEnabled()
+    await user.click(approveButton)
+
+    await waitFor(() => expect(mocks.approve).toHaveBeenCalledWith('pairing-1', { displayName: 'Grok Bot', apiKeyId: 'key-1' }))
+  })
+
   it('keeps approval pending and non-dismissible until discovery preparation finishes', async () => {
     const user = userEvent.setup()
     let finishDiscovery: ((value: boolean) => void) | undefined

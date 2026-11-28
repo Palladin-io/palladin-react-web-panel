@@ -75,6 +75,14 @@ export interface Agent {
   description: string | null
   lastIp: string | null
   lastHostname: string | null
+  /** Present only for an explicitly paired Sandbox Agent; the backend enforces its limits. */
+  sandbox?: AgentSandboxPolicy | null
+}
+
+/** Backend-owned limits of a Sandbox Agent whose key is readable inside its sandbox. */
+export interface AgentSandboxPolicy {
+  identityExpiresAt: string
+  maxGrantMinutes: number
 }
 
 interface AgentListResponse { items: Agent[] }
@@ -124,6 +132,13 @@ export interface AgentPairingClaim {
   expiresAt: string
   canCreateApiKey: boolean
   apiKeys: AgentPairingApiKeyOption[]
+  /** Requested by the runtime at pairing start; approval requires explicit acknowledgement. */
+  sandbox?: AgentPairingSandboxPolicy | null
+}
+
+export interface AgentPairingSandboxPolicy {
+  identityLifetimeDays: number
+  maxGrantMinutes: number
 }
 
 // Route params are an independent browser-input boundary. Validate before

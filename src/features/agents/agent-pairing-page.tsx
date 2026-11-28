@@ -8,6 +8,8 @@ import { FeedbackSlot, FormInput } from '../../shared/components/form-field'
 import { FormSelect } from '../../shared/components/form-select'
 import { Icon } from '../../shared/components/icon'
 import { DialogFooter } from '../../shared/components/dialog-footer'
+import { DangerZone } from '../../shared/components/danger-zone'
+import { MetadataBadge } from '../../shared/components/metadata-badge'
 import { ModalShell } from '../../shared/components/modal-shell'
 import { analytics } from '../../shared/lib/analytics'
 import { firstError, required } from '../../shared/lib/validation'
@@ -120,6 +122,7 @@ export function AgentPairingPage({
   const [nameConflict, setNameConflict] = useState(false)
   const [nameTouched, setNameTouched] = useState(false)
   const [newApiKeyNameTouched, setNewApiKeyNameTouched] = useState(false)
+  const [sandboxAcknowledged, setSandboxAcknowledged] = useState(false)
 
   const displayName = editedDisplayName ?? claim.data?.initialDisplayName ?? ''
   const apiKeyChoice = editedApiKeyChoice
@@ -233,8 +236,10 @@ export function AgentPairingPage({
     ? firstError(newApiKeyName, [required(t('agents.pairing.newApiKeyNameRequired'))])
     : null
   const showNewApiKeyNameError = newApiKeyNameTouched && newApiKeyNameError !== null
+  const sandbox = claim.data.sandbox ?? null
   const canApprove = Boolean(
-    normalizedName && apiKeyChoice && newApiKeyNameError === null,
+    normalizedName && apiKeyChoice && newApiKeyNameError === null
+      && (!sandbox || sandboxAcknowledged),
   )
 
   return (
@@ -246,7 +251,7 @@ export function AgentPairingPage({
             {t('agents.pairing.reject')}
           </Button>
           <Button variant="accent" size="sm" className="min-w-0 flex-[2]" type="submit" form="agent-pairing-approval" disabled={!canApprove || actionPending}>
-            {approve.isPending ? t('agents.pairing.approving') : t('agents.pairing.approve')}
+            {approve.isPending ? t('agents.pairing.approving') : t(sandbox ? 'agents.sandbox.approve' : 'agents.pairing.approve')}
           </Button>
         </DialogFooter>
       }
@@ -272,7 +277,10 @@ export function AgentPairingPage({
               </span>
             </button>
             <div className="flex min-h-12 min-w-0 flex-1 flex-col justify-between gap-1 self-stretch">
-              <p className="break-words text-heading font-semibold text-[var(--cv-t1)]">{displayName || t('agents.pairing.displayName')}</p>
+              <div className="flex min-w-0 items-center gap-2">
+                <p className="min-w-0 break-words text-heading font-semibold text-[var(--cv-t1)]">{displayName || t('agents.pairing.displayName')}</p>
+                {sandbox ? <MetadataBadge color="var(--cv-premium)">{t('agents.sandbox.badge')}</MetadataBadge> : null}
+              </div>
               <dl className="min-w-0 self-end break-words text-right text-meta text-[var(--cv-t2)]">
                 <dt className="sr-only">{t('agents.pairing.type')}</dt>
                 <dd className="break-words">{claim.data.type ? typeLabel(claim.data.type, t) : t('agents.pairing.typeAbsent')}</dd>
@@ -288,6 +296,18 @@ export function AgentPairingPage({
             <dd className="break-words text-right">{claim.data.publicKeyHint}</dd>
             <dt>{t('agents.pairing.expiresLabel')}</dt>
             <dd className="break-words text-right">{formatAgentDateTime(claim.data.expiresAt)}</dd>
+            {sandbox ? (
+              <>
+                <dt>{t('agents.sandbox.tier')}</dt>
+                <dd className="break-words text-right">{t('agents.sandbox.tierValue')}</dd>
+                <dt>{t('agents.sandbox.identityLifetime')}</dt>
+                <dd className="break-words text-right">{t('agents.sandbox.identityLifetimeValue', { count: sandbox.identityLifetimeDays })}</dd>
+                <dt>{t('agents.sandbox.grants')}</dt>
+                <dd className="break-words text-right">{t('agents.sandbox.grantsValue', { minutes: sandbox.maxGrantMinutes })}</dd>
+                <dt>{t('agents.sandbox.fullAccess')}</dt>
+                <dd className="break-words text-right">{t('agents.sandbox.notAllowed')}</dd>
+              </>
+            ) : null}
           </dl>
         </div>
         {showIconBrowser && (
@@ -387,6 +407,20 @@ export function AgentPairingPage({
         {!claim.data.canCreateApiKey && claim.data.apiKeys.length === 0 && (
           <p role="status" className="text-meta text-[var(--cv-t2)]">{t('agents.pairing.noAvailableApiKey')}</p>
         )}
+        {sandbox ? (
+          <>
+            <label className="flex items-center gap-2 text-ui text-[var(--cv-t1)]">
+              <input
+                type="checkbox"
+                checked={sandboxAcknowledged}
+                disabled={actionPending}
+                onChange={(event) => setSandboxAcknowledged(event.target.checked)}
+              />
+              {t('agents.sandbox.acknowledge')}
+            </label>
+            <DangerZone title={t('agents.sandbox.dangerTitle')} description={t('agents.sandbox.dangerBody')}>{null}</DangerZone>
+          </>
+        ) : null}
       </form>
     </PairingShell>
   )
