@@ -49,7 +49,9 @@ export function Tooltip({ content, children, className, delayMs = 150, always = 
       const node = triggerRef.current
       if (!node) return
       const rect = node.getBoundingClientRect()
-      const desiredHalfWidth = Math.min(160, Math.max(0, (window.innerWidth - 24) / 2))
+      // Matches the bubble's 20rem max width; the panel scales rem, so derive pixels at runtime.
+      const rem = Number.parseFloat(getComputedStyle(document.documentElement).fontSize) || 16
+      const desiredHalfWidth = Math.min(10 * rem, Math.max(0, (window.innerWidth - 24) / 2))
       const triggerCenter = rect.left + rect.width / 2
       const x = window.innerWidth <= desiredHalfWidth * 2 + 24
         ? window.innerWidth / 2
